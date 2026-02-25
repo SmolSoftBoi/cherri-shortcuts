@@ -1,2 +1,3 @@
-# cherri-shortcuts
+# Cherri Shortcuts
+
 A Cherri shortcuts toolkit for creating modular, maintainable Siri Shortcuts projects.
