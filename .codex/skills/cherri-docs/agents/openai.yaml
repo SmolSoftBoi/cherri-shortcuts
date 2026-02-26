@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cherri Docs"
+  short_description: "Official Cherri docs lookup with citations"
+  default_prompt: "Use $cherri-docs to answer this Cherri API or product docs question with citations from official documentation."
