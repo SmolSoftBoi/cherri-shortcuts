@@ -3,4 +3,7 @@ version = 1
 name = "Cherri Shortcuts"
 
 [setup]
-script = ""
+script = '''
+brew tap electrikmilk/cherri
+brew install electrikmilk/cherri/cherri
+'''
