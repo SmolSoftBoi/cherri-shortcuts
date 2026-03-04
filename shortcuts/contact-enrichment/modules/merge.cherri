@@ -1,0 +1,192 @@
+function build_merge_proposal(variable seed, variable candidates, variable thresholds): dictionary {
+    @proposal = {}
+
+    @proposal = setValue(@proposal, "first_name_update", "")
+    @proposal = setValue(@proposal, "last_name_update", "")
+    @proposal = setValue(@proposal, "name_update", "")
+    @proposal = setValue(@proposal, "company_update", "")
+    @proposal = setValue(@proposal, "job_title_update", "")
+    @proposal = setValue(@proposal, "department_update", "")
+    @proposal = setValue(@proposal, "nickname_update", "")
+
+    @preview = "Proposed updates (fill-missing-only):"
+    @update_count = 0
+
+    @name_threshold = number(getValue(@thresholds, "name"))
+    @company_threshold = number(getValue(@thresholds, "company"))
+    @role_threshold = number(getValue(@thresholds, "role"))
+    @has_contact = getValue(@seed, "has_contact")
+
+    @seed_first_name = getValue(@seed, "first_name")
+    @candidate_first_name = getValue(@candidates, "first_name")
+    @candidate_first_name_confidence_text = getValue(@candidates, "first_name_confidence")
+    @candidate_first_name_confidence = number(@candidate_first_name_confidence_text)
+
+    if @seed_first_name == "" && @candidate_first_name != "" && @candidate_first_name_confidence >= @name_threshold {
+        @proposal = setValue(@proposal, "first_name_update", @candidate_first_name)
+        @preview = text("{preview}\n- First Name: {candidate_first_name} ({candidate_first_name_confidence_text})")
+        @update_count = @update_count + 1
+    }
+
+    @seed_last_name = getValue(@seed, "last_name")
+    @candidate_last_name = getValue(@candidates, "last_name")
+    @candidate_last_name_confidence_text = getValue(@candidates, "last_name_confidence")
+    @candidate_last_name_confidence = number(@candidate_last_name_confidence_text)
+
+    if @seed_last_name == "" && @candidate_last_name != "" && @candidate_last_name_confidence >= @name_threshold {
+        @proposal = setValue(@proposal, "last_name_update", @candidate_last_name)
+        @preview = text("{preview}\n- Last Name: {candidate_last_name} ({candidate_last_name_confidence_text})")
+        @update_count = @update_count + 1
+    }
+
+    @seed_name = getValue(@seed, "name")
+    @candidate_name = getValue(@candidates, "name")
+    @candidate_name_confidence_text = getValue(@candidates, "name_confidence")
+    @candidate_name_confidence = number(@candidate_name_confidence_text)
+
+    if @has_contact == "true" && @seed_name == "" && @candidate_name != "" && @candidate_name_confidence >= @name_threshold {
+        @proposal = setValue(@proposal, "name_update", @candidate_name)
+        @preview = text("{preview}\n- Name: {candidate_name} ({candidate_name_confidence_text})")
+        @update_count = @update_count + 1
+    }
+
+    @seed_company = getValue(@seed, "company")
+    @candidate_company = getValue(@candidates, "company")
+    @candidate_company_confidence_text = getValue(@candidates, "company_confidence")
+    @candidate_company_confidence = number(@candidate_company_confidence_text)
+
+    if @seed_company == "" && @candidate_company != "" && @candidate_company_confidence >= @company_threshold {
+        @proposal = setValue(@proposal, "company_update", @candidate_company)
+        @preview = text("{preview}\n- Company: {candidate_company} ({candidate_company_confidence_text})")
+        @update_count = @update_count + 1
+    }
+
+    @seed_job_title = getValue(@seed, "job_title")
+    @candidate_job_title = getValue(@candidates, "job_title")
+    @candidate_job_title_confidence_text = getValue(@candidates, "job_title_confidence")
+    @candidate_job_title_confidence = number(@candidate_job_title_confidence_text)
+
+    if @has_contact == "true" && @seed_job_title == "" && @candidate_job_title != "" && @candidate_job_title_confidence >= @role_threshold {
+        @proposal = setValue(@proposal, "job_title_update", @candidate_job_title)
+        @preview = text("{preview}\n- Job Title: {candidate_job_title} ({candidate_job_title_confidence_text})")
+        @update_count = @update_count + 1
+    }
+
+    @seed_department = getValue(@seed, "department")
+    @candidate_department = getValue(@candidates, "department")
+    @candidate_department_confidence_text = getValue(@candidates, "department_confidence")
+    @candidate_department_confidence = number(@candidate_department_confidence_text)
+
+    if @has_contact == "true" && @seed_department == "" && @candidate_department != "" && @candidate_department_confidence >= @role_threshold {
+        @proposal = setValue(@proposal, "department_update", @candidate_department)
+        @preview = text("{preview}\n- Department: {candidate_department} ({candidate_department_confidence_text})")
+        @update_count = @update_count + 1
+    }
+
+    @seed_nickname = getValue(@seed, "nickname")
+    @candidate_nickname = getValue(@candidates, "nickname")
+    @candidate_nickname_confidence_text = getValue(@candidates, "nickname_confidence")
+    @candidate_nickname_confidence = number(@candidate_nickname_confidence_text)
+
+    if @has_contact == "true" && @seed_nickname == "" && @candidate_nickname != "" && @candidate_nickname_confidence >= @name_threshold {
+        @proposal = setValue(@proposal, "nickname_update", @candidate_nickname)
+        @preview = text("{preview}\n- Nickname: {candidate_nickname} ({candidate_nickname_confidence_text})")
+        @update_count = @update_count + 1
+    }
+
+    @proposal = setValue(@proposal, "preview", @preview)
+    @proposal = setValue(@proposal, "update_count", number_to_text(@update_count))
+
+    return @proposal
+}
+
+function apply_contact_updates(variable seed, variable proposal, variable selected_contact): dictionary {
+    @result = {}
+    @applied_count = 0
+
+    @first_name_update = getValue(@proposal, "first_name_update")
+    @last_name_update = getValue(@proposal, "last_name_update")
+    @name_update = getValue(@proposal, "name_update")
+    @company_update = getValue(@proposal, "company_update")
+    @job_title_update = getValue(@proposal, "job_title_update")
+    @department_update = getValue(@proposal, "department_update")
+    @nickname_update = getValue(@proposal, "nickname_update")
+
+    @has_contact = getValue(@seed, "has_contact")
+
+    // Writable field allowlist: profile fields supported by updateContact.
+    if @has_contact == "true" {
+        if @first_name_update != "" {
+            updateContact(@selected_contact, "First Name", @first_name_update)
+            @applied_count = @applied_count + 1
+        }
+
+        if @last_name_update != "" {
+            updateContact(@selected_contact, "Last Name", @last_name_update)
+            @applied_count = @applied_count + 1
+        }
+
+        if @name_update != "" {
+            updateContact(@selected_contact, "Name", @name_update)
+            @applied_count = @applied_count + 1
+        }
+
+        if @company_update != "" {
+            updateContact(@selected_contact, "Company", @company_update)
+            @applied_count = @applied_count + 1
+        }
+
+        if @job_title_update != "" {
+            updateContact(@selected_contact, "Job Title", @job_title_update)
+            @applied_count = @applied_count + 1
+        }
+
+        if @department_update != "" {
+            updateContact(@selected_contact, "Department", @department_update)
+            @applied_count = @applied_count + 1
+        }
+
+        if @nickname_update != "" {
+            updateContact(@selected_contact, "Nickname", @nickname_update)
+            @applied_count = @applied_count + 1
+        }
+    } else {
+        @seed_first_name = getValue(@seed, "first_name")
+        @seed_last_name = getValue(@seed, "last_name")
+        @seed_phone = getValue(@seed, "phone")
+        @seed_email = getValue(@seed, "email")
+        @seed_company = getValue(@seed, "company")
+
+        if @first_name_update != "" {
+            @seed_first_name = @first_name_update
+            @applied_count = @applied_count + 1
+        }
+
+        if @last_name_update != "" {
+            @seed_last_name = @last_name_update
+            @applied_count = @applied_count + 1
+        }
+
+        if @company_update != "" {
+            @seed_company = @company_update
+            @applied_count = @applied_count + 1
+        }
+
+        @notes = "Created from contact enrichment shortcut."
+        newContact(@seed_first_name, @seed_last_name, @seed_phone, @seed_email, @seed_company, @notes, true)
+    }
+
+    @applied_count_text = number_to_text(@applied_count)
+    @summary = ""
+
+    if @has_contact == "true" {
+        @summary = text("Applied {applied_count_text} field update(s).")
+    } else {
+        @summary = text("Created a new contact using {applied_count_text} enriched field(s).")
+    }
+
+    @result = setValue(@result, "applied_count", @applied_count_text)
+    @result = setValue(@result, "summary", @summary)
+
+    return @result
+}

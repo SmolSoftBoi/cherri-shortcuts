@@ -4,7 +4,7 @@
 
 ## Scope
 
-This file applies to `.github/` and its descendants.
+This file applies to `openspec/` and its descendants.
 
 ## Project Context
 
@@ -121,8 +121,9 @@ This file applies to `.github/` and its descendants.
 
 ## OpenSpec Workflow (Repo Convention)
 
-- For non-trivial feature work, use the OpenSpec prompts/skills in `.github/prompts/` and `openspec/`.
-- Keep proposal, design, specs, and tasks aligned before implementation when using OpenSpec.
+- Treat `openspec/` as spec source-of-truth material and keep changes deliberate.
+- Update proposal/design/spec/tasks artefacts together when scope changes.
+- Preserve OpenSpec schema structure and file naming conventions expected by the CLI.
 
 ## Safety
 
@@ -131,9 +132,8 @@ This file applies to `.github/` and its descendants.
 
 ## Directory-Specific Guidance
 
-- Keep prompt files in `.github/prompts/` concise and task-oriented.
-- Preserve prompt filenames and slash-command naming conventions unless the user requests a rename.
-- When changing prompt text, prefer minimal edits that keep existing workflow intent intact.
+- Write OpenSpec artefacts in Markdown with stable section structure so diffs are easy to review.
+- Keep requirement language normative (`SHALL`/`MUST`) in spec files and ensure each requirement has at least one scenario.
 
 ## Reference Links (Official Cherri Docs)
 

@@ -1,0 +1,269 @@
+function build_twilio_headers(variable config): dictionary {
+    @headers = {}
+    @twilio_sid = getValue(@config, "twilio_account_sid")
+    @twilio_token = getValue(@config, "twilio_auth_token")
+
+    if @twilio_sid == "" || @twilio_token == "" {
+        return @headers
+    }
+
+    @auth_pair = text("{twilio_sid}:{twilio_token}")
+    @basic_token = base64Encode(@auth_pair)
+    @authorization_header = text("Basic {basic_token}")
+
+    @headers = setValue(@headers, "Authorization", @authorization_header)
+    return @headers
+}
+
+function run_twilio_lookup(text phone_number, variable config): dictionary {
+    @result = {}
+    @result = setValue(@result, "provider", "twilio")
+    @result = setValue(@result, "status", "skipped")
+    @result = setValue(@result, "phone_number", @phone_number)
+    @result = setValue(@result, "phone_valid", "")
+    @result = setValue(@result, "line_type", "")
+    @result = setValue(@result, "caller_name", "")
+
+    if @phone_number == "" {
+        @result = setValue(@result, "status", "no_phone")
+        return @result
+    }
+
+    @twilio_sid = getValue(@config, "twilio_account_sid")
+    @twilio_token = getValue(@config, "twilio_auth_token")
+
+    if @twilio_sid == "" || @twilio_token == "" {
+        @result = setValue(@result, "status", "missing_credentials")
+        return @result
+    }
+
+    @encoded_phone = urlEncode(@phone_number)
+    @lookup_url = text("https://lookups.twilio.com/v2/PhoneNumbers/{encoded_phone}?Fields=line_type_intelligence,caller_name")
+
+    @raw_response = downloadURL(@lookup_url, build_twilio_headers(@config))
+    @raw_dictionary = getDictionary(@raw_response)
+
+    if typeOf(@raw_dictionary) != "Dictionary" {
+        @result = setValue(@result, "status", "parse_error")
+        return @result
+    }
+
+    @result = setValue(@result, "status", "ok")
+
+    @raw_phone_number = getValue(@raw_dictionary, "phone_number")
+    if @raw_phone_number != null {
+        @raw_phone_number_text = text("{raw_phone_number}")
+        @result = setValue(@result, "phone_number", @raw_phone_number_text)
+    }
+
+    @raw_valid = getValue(@raw_dictionary, "valid")
+    if @raw_valid != null {
+        @raw_valid_text = text("{raw_valid}")
+        @result = setValue(@result, "phone_valid", @raw_valid_text)
+    }
+
+    @line_type_block = getValue(@raw_dictionary, "line_type_intelligence")
+    if typeOf(@line_type_block) == "Dictionary" {
+        @raw_line_type = getValue(@line_type_block, "type")
+        if @raw_line_type != null {
+            @raw_line_type_text = text("{raw_line_type}")
+            @result = setValue(@result, "line_type", @raw_line_type_text)
+        }
+    }
+
+    @caller_name_block = getValue(@raw_dictionary, "caller_name")
+    if typeOf(@caller_name_block) == "Dictionary" {
+        @raw_caller_name = getValue(@caller_name_block, "caller_name")
+        if @raw_caller_name != null {
+            @raw_caller_name_text = text("{raw_caller_name}")
+            @result = setValue(@result, "caller_name", @raw_caller_name_text)
+        }
+    }
+
+    return @result
+}
+
+function build_pdl_headers(variable config): dictionary {
+    @headers = {}
+    @pdl_api_key = getValue(@config, "pdl_api_key")
+    @headers = setValue(@headers, "X-Api-Key", @pdl_api_key)
+    return @headers
+}
+
+function run_pdl_person_enrichment(variable seed, variable config): dictionary {
+    @result = {}
+    @result = setValue(@result, "provider", "pdl_person")
+    @result = setValue(@result, "status", "skipped")
+    @result = setValue(@result, "name", "")
+    @result = setValue(@result, "first_name", "")
+    @result = setValue(@result, "last_name", "")
+    @result = setValue(@result, "company", "")
+    @result = setValue(@result, "job_title", "")
+    @result = setValue(@result, "department", "")
+    @result = setValue(@result, "email", "")
+
+    @pdl_api_key = getValue(@config, "pdl_api_key")
+    if @pdl_api_key == "" {
+        @result = setValue(@result, "status", "missing_credentials")
+        return @result
+    }
+
+    @body = {}
+
+    @seed_phone = getValue(@seed, "phone")
+    @seed_email = getValue(@seed, "email")
+    @seed_first_name = getValue(@seed, "first_name")
+    @seed_last_name = getValue(@seed, "last_name")
+    @seed_name = getValue(@seed, "name")
+    @seed_company = getValue(@seed, "company")
+    @seed_domain = getValue(@seed, "domain")
+
+    if @seed_phone != "" {
+        @body = setValue(@body, "phone", @seed_phone)
+    }
+
+    if @seed_email != "" {
+        @body = setValue(@body, "email", @seed_email)
+    }
+
+    if @seed_first_name != "" {
+        @body = setValue(@body, "first_name", @seed_first_name)
+    }
+
+    if @seed_last_name != "" {
+        @body = setValue(@body, "last_name", @seed_last_name)
+    }
+
+    if @seed_name != "" {
+        @body = setValue(@body, "name", @seed_name)
+    }
+
+    if @seed_company != "" {
+        @body = setValue(@body, "company", @seed_company)
+    }
+
+    if @seed_domain != "" {
+        @body = setValue(@body, "company_domain", @seed_domain)
+    }
+
+    if count(getKeys(@body)) == 0 {
+        @result = setValue(@result, "status", "no_identifiers")
+        return @result
+    }
+
+    @raw_response = jsonRequest("https://api.peopledatalabs.com/v5/person/enrich", "POST", @body, build_pdl_headers(@config))
+    @raw_dictionary = getDictionary(@raw_response)
+
+    if typeOf(@raw_dictionary) != "Dictionary" {
+        @result = setValue(@result, "status", "parse_error")
+        return @result
+    }
+
+    @result = setValue(@result, "status", "ok")
+
+    @data = getValue(@raw_dictionary, "data")
+    if typeOf(@data) != "Dictionary" {
+        @result = setValue(@result, "status", "no_data")
+        return @result
+    }
+
+    @full_name = getValue(@data, "full_name")
+    @first_name = getValue(@data, "first_name")
+    @last_name = getValue(@data, "last_name")
+    @company = getValue(@data, "job_company_name")
+    @job_title = getValue(@data, "job_title")
+    @department = getValue(@data, "job_department")
+    @email = getValue(@data, "work_email")
+
+    if @full_name != null {
+        @result = setValue(@result, "name", text("{full_name}"))
+    }
+
+    if @first_name != null {
+        @result = setValue(@result, "first_name", text("{first_name}"))
+    }
+
+    if @last_name != null {
+        @result = setValue(@result, "last_name", text("{last_name}"))
+    }
+
+    if @company != null {
+        @result = setValue(@result, "company", text("{company}"))
+    }
+
+    if @job_title != null {
+        @result = setValue(@result, "job_title", text("{job_title}"))
+    }
+
+    if @department != null {
+        @result = setValue(@result, "department", text("{department}"))
+    }
+
+    if @email != null {
+        @result = setValue(@result, "email", text("{email}"))
+    }
+
+    return @result
+}
+
+function run_pdl_company_enrichment(variable seed, variable person_result, variable config): dictionary {
+    @result = {}
+    @result = setValue(@result, "provider", "pdl_company")
+    @result = setValue(@result, "status", "skipped")
+    @result = setValue(@result, "company", "")
+    @result = setValue(@result, "domain", "")
+
+    @pdl_api_key = getValue(@config, "pdl_api_key")
+    if @pdl_api_key == "" {
+        @result = setValue(@result, "status", "missing_credentials")
+        return @result
+    }
+
+    @candidate_company = getValue(@seed, "company")
+    if @candidate_company == "" {
+        @candidate_company = getValue(@person_result, "company")
+    }
+
+    @candidate_domain = getValue(@seed, "domain")
+
+    @body = {}
+
+    if @candidate_company != "" {
+        @body = setValue(@body, "name", @candidate_company)
+    }
+
+    if @candidate_domain != "" {
+        @website = text("https://{candidate_domain}")
+        @body = setValue(@body, "website", @website)
+    }
+
+    if count(getKeys(@body)) == 0 {
+        @result = setValue(@result, "status", "no_context")
+        return @result
+    }
+
+    @raw_response = jsonRequest("https://api.peopledatalabs.com/v5/company/enrich", "POST", @body, build_pdl_headers(@config))
+    @raw_dictionary = getDictionary(@raw_response)
+
+    if typeOf(@raw_dictionary) != "Dictionary" {
+        @result = setValue(@result, "status", "parse_error")
+        return @result
+    }
+
+    @result = setValue(@result, "status", "ok")
+
+    @name_value = getValue(@raw_dictionary, "name")
+    if @name_value != null {
+        @result = setValue(@result, "company", text("{name_value}"))
+    }
+
+    @website_value = getValue(@raw_dictionary, "website")
+    if @website_value != null {
+        @website_text = text("{website_value}")
+        @website_text = replaceText("https://", "", @website_text)
+        @website_text = replaceText("http://", "", @website_text)
+        @result = setValue(@result, "domain", @website_text)
+    }
+
+    return @result
+}

@@ -1,5 +1,16 @@
-# Builds
+# Build outputs
 *.shortcut
 
-# Debug
+# Debug artefacts
 *.plist
+
+# Local environment
+.env
+.env.local
+
+# IDE and editor directories
+.vscode/
+.vscode-test/
+
+# OS metadata
+.DS_Store

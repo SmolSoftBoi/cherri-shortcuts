@@ -30,3 +30,16 @@ python3 scripts/generate_agents.py check
 ```
 
 `check` exits non-zero if any managed `AGENTS.md` file is missing or out of date.
+
+## Contact Enrichment Shortcut
+
+This repository now includes a Cherri shortcut for contact enrichment:
+
+- Entry point: `shortcuts/contact-enrichment/contact-enrichment.cherri`
+- Setup and validation guide: `shortcuts/contact-enrichment/README.md`
+
+Compile with:
+
+```bash
+cherri shortcuts/contact-enrichment/contact-enrichment.cherri
+```

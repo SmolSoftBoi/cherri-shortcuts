@@ -1,0 +1,190 @@
+function normalise_phone(text value_text): text {
+    @phone = trimWhitespace(@value_text)
+    @phone = replaceText(" ", "", @phone)
+    @phone = replaceText("-", "", @phone)
+    @phone = replaceText("(", "", @phone)
+    @phone = replaceText(")", "", @phone)
+
+    if @phone == "" {
+        return ""
+    }
+
+    if containsText(@phone, "+") == false {
+        @phone = text("+{phone}")
+    }
+
+    return @phone
+}
+
+function dictionary_value_text(variable source_dictionary, text key): text {
+    @value = getValue(@source_dictionary, @key)
+
+    if @value == null {
+        return ""
+    }
+
+    @value_text = text("{value}")
+    @value_text = trimWhitespace(@value_text)
+
+    return @value_text
+}
+
+function extract_contact_seed_fields(variable contact): dictionary {
+    @fields = {}
+
+    @full_name = getContactDetail(@contact, "Name")
+    @first_name = getContactDetail(@contact, "First Name")
+    @last_name = getContactDetail(@contact, "Last Name")
+    @company = getContactDetail(@contact, "Company")
+    @job_title = getContactDetail(@contact, "Job Title")
+    @department = getContactDetail(@contact, "Department")
+    @nickname = getContactDetail(@contact, "Nickname")
+
+    @phone_values = getPhoneNumbers(@contact)
+    @phone = first_list_item_text(@phone_values)
+
+    @email_values = getEmails(@contact)
+    @email = first_list_item_text(@email_values)
+
+    @fields = setValue(@fields, "phone", trimWhitespace(@phone))
+    @fields = setValue(@fields, "email", trimWhitespace(@email))
+    @fields = setValue(@fields, "domain", "")
+    @fields = setValue(@fields, "name", trimWhitespace(@full_name))
+    @fields = setValue(@fields, "first_name", trimWhitespace(@first_name))
+    @fields = setValue(@fields, "last_name", trimWhitespace(@last_name))
+    @fields = setValue(@fields, "company", trimWhitespace(@company))
+    @fields = setValue(@fields, "job_title", trimWhitespace(@job_title))
+    @fields = setValue(@fields, "department", trimWhitespace(@department))
+    @fields = setValue(@fields, "nickname", trimWhitespace(@nickname))
+
+    return @fields
+}
+
+function extract_dictionary_seed_fields(variable input_dictionary): dictionary {
+    @fields = {}
+
+    @phone = dictionary_value_text(@input_dictionary, "phone")
+    if @phone == "" {
+        @phone = dictionary_value_text(@input_dictionary, "phone_number")
+    }
+
+    @email = dictionary_value_text(@input_dictionary, "email")
+
+    @domain = dictionary_value_text(@input_dictionary, "domain")
+    if @domain == "" {
+        @domain = dictionary_value_text(@input_dictionary, "company_domain")
+    }
+
+    @full_name = dictionary_value_text(@input_dictionary, "name")
+    if @full_name == "" {
+        @full_name = dictionary_value_text(@input_dictionary, "full_name")
+    }
+
+    @first_name = dictionary_value_text(@input_dictionary, "first_name")
+    @last_name = dictionary_value_text(@input_dictionary, "last_name")
+
+    @company = dictionary_value_text(@input_dictionary, "company")
+    if @company == "" {
+        @company = dictionary_value_text(@input_dictionary, "company_name")
+    }
+
+    @job_title = dictionary_value_text(@input_dictionary, "job_title")
+    if @job_title == "" {
+        @job_title = dictionary_value_text(@input_dictionary, "title")
+    }
+
+    @department = dictionary_value_text(@input_dictionary, "department")
+    @nickname = dictionary_value_text(@input_dictionary, "nickname")
+
+    @fields = setValue(@fields, "phone", @phone)
+    @fields = setValue(@fields, "email", @email)
+    @fields = setValue(@fields, "domain", @domain)
+    @fields = setValue(@fields, "name", @full_name)
+    @fields = setValue(@fields, "first_name", @first_name)
+    @fields = setValue(@fields, "last_name", @last_name)
+    @fields = setValue(@fields, "company", @company)
+    @fields = setValue(@fields, "job_title", @job_title)
+    @fields = setValue(@fields, "department", @department)
+    @fields = setValue(@fields, "nickname", @nickname)
+
+    return @fields
+}
+
+function map_text_shortcut_input(text input_text): dictionary {
+    @fields = {}
+    @fields = setValue(@fields, "phone", "")
+    @fields = setValue(@fields, "email", "")
+    @fields = setValue(@fields, "domain", "")
+    @fields = setValue(@fields, "name", "")
+    @fields = setValue(@fields, "first_name", "")
+    @fields = setValue(@fields, "last_name", "")
+    @fields = setValue(@fields, "company", "")
+    @fields = setValue(@fields, "job_title", "")
+    @fields = setValue(@fields, "department", "")
+    @fields = setValue(@fields, "nickname", "")
+
+    @trimmed_input = trimWhitespace(@input_text)
+    if @trimmed_input == "" {
+        return @fields
+    }
+
+    if containsText(@trimmed_input, "@") {
+        @fields = setValue(@fields, "email", @trimmed_input)
+        return @fields
+    }
+
+    @phone_candidate = replaceText("[\\s\\-\\(\\)\\.\\+]", "", @trimmed_input, true, true)
+    if @phone_candidate != "" {
+        @phone_non_digits = replaceText("[0-9]", "", @phone_candidate, true, true)
+
+        if @phone_non_digits == "" {
+            @fields = setValue(@fields, "phone", @trimmed_input)
+            return @fields
+        }
+    }
+
+    if containsText(@trimmed_input, ".") && containsText(@trimmed_input, " ") == false {
+        @fields = setValue(@fields, "domain", @trimmed_input)
+        return @fields
+    }
+
+    @fields = setValue(@fields, "phone", @trimmed_input)
+    return @fields
+}
+
+function derive_domain_from_email(text value_text): text {
+    @email = trimWhitespace(@value_text)
+
+    if @email == "" {
+        return ""
+    }
+
+    @parts = splitText(@email, "@")
+
+    if count(@parts) < 2 {
+        return ""
+    }
+
+    @domain = getListItem(@parts, 2)
+    @domain = trimWhitespace(@domain)
+
+    return @domain
+}
+
+function validate_seed_or_stop(text phone, text email, text first_name, text last_name, text full_name, text company, text domain) {
+    if @phone == "" && @email == "" && @first_name == "" && @last_name == "" && @full_name == "" && @company == "" && @domain == "" {
+        alert("Provide at least one identifier (phone, email, name, company, or domain).", "Missing Contact Seed")
+        stop()
+    }
+}
+
+function first_list_item_text(variable values_list): text {
+    if count(@values_list) < 1 {
+        return ""
+    }
+
+    @first_value = getListItem(@values_list, 1)
+    @first_value_text = text("{first_value}")
+
+    return @first_value_text
+}
