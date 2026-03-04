@@ -3,7 +3,7 @@
 This shortcut enriches missing contact profile fields using:
 - Twilio Lookup (phone metadata)
 - People Data Labs person/company enrichment
-- Apple Intelligence + ChatGPT normalisation
+- Apple Intelligence normalisation (with optional ChatGPT conflict resolution)
 
 It applies a fill-missing-only merge rule and asks for confirmation before updates.
 
@@ -47,20 +47,24 @@ Do not hard-code credentials in source files.
    - Twilio Account SID
    - Twilio Auth Token
    - People Data Labs API Key
+   - ChatGPT cloud conflict resolution opt-in (`yes`/`no`, default `no`)
 2. Leave any credential blank to skip that provider.
-3. Runtime prompts remain only for enrichment input fields and confidence thresholds.
+3. ChatGPT resolution is skipped unless opt-in is enabled.
+4. When enabled, ChatGPT receives a minimised conflict-resolution payload (excluding direct phone and email fields).
+5. Runtime prompts remain only for enrichment input fields and confidence thresholds.
 
 ## Account Prerequisites
 
 - Twilio account with Lookup API access.
 - People Data Labs account with person/company enrichment access.
-- Apple Intelligence and ChatGPT access from Shortcuts on the target device.
+- Apple Intelligence access from Shortcuts on the target device.
+- ChatGPT access from Shortcuts is required only when ChatGPT opt-in is enabled.
 
 ## Confidence Thresholds
 
 The shortcut prompts for user-configurable thresholds with defaults:
 - Name fields: `0.72`
-- Company/domain: `0.70`
+- Company: `0.70`
 - Role fields (job title/department): `0.68`
 
 Inputs are bounded to the `0..1` range.

@@ -3,7 +3,7 @@ function build_twilio_headers(variable config): dictionary {
     @twilio_sid = getValue(@config, "twilio_account_sid")
     @twilio_token = getValue(@config, "twilio_auth_token")
 
-    if @twilio_sid == "" || @twilio_token == "" {
+    if @twilio_sid == null || @twilio_sid == "" || @twilio_token == null || @twilio_token == "" {
         return @headers
     }
 
@@ -32,7 +32,7 @@ function run_twilio_lookup(text phone_number, variable config): dictionary {
     @twilio_sid = getValue(@config, "twilio_account_sid")
     @twilio_token = getValue(@config, "twilio_auth_token")
 
-    if @twilio_sid == "" || @twilio_token == "" {
+    if @twilio_sid == null || @twilio_sid == "" || @twilio_token == null || @twilio_token == "" {
         @result = setValue(@result, "status", "missing_credentials")
         return @result
     }
@@ -48,7 +48,11 @@ function run_twilio_lookup(text phone_number, variable config): dictionary {
         return @result
     }
 
-    @result = setValue(@result, "status", "ok")
+    @twilio_error_code = getValue(@raw_dictionary, "code")
+    if @twilio_error_code != null {
+        @result = setValue(@result, "status", "provider_error")
+        return @result
+    }
 
     @raw_phone_number = getValue(@raw_dictionary, "phone_number")
     if @raw_phone_number != null {
@@ -57,9 +61,22 @@ function run_twilio_lookup(text phone_number, variable config): dictionary {
     }
 
     @raw_valid = getValue(@raw_dictionary, "valid")
-    if @raw_valid != null {
-        @raw_valid_text = text("{raw_valid}")
-        @result = setValue(@result, "phone_valid", @raw_valid_text)
+    if @raw_valid == null {
+        @result = setValue(@result, "status", "invalid_response")
+        return @result
+    }
+
+    @raw_valid_text = text("{raw_valid}")
+    @raw_valid_text = lowercase(trimWhitespace(@raw_valid_text))
+    @result = setValue(@result, "phone_valid", @raw_valid_text)
+
+    if @raw_valid_text == "true" {
+        @result = setValue(@result, "status", "ok")
+    } else if @raw_valid_text == "false" {
+        @result = setValue(@result, "status", "invalid_phone")
+    } else {
+        @result = setValue(@result, "status", "invalid_response")
+        return @result
     }
 
     @line_type_block = getValue(@raw_dictionary, "line_type_intelligence")
@@ -86,6 +103,11 @@ function run_twilio_lookup(text phone_number, variable config): dictionary {
 function build_pdl_headers(variable config): dictionary {
     @headers = {}
     @pdl_api_key = getValue(@config, "pdl_api_key")
+
+    if @pdl_api_key == null || @pdl_api_key == "" {
+        return @headers
+    }
+
     @headers = setValue(@headers, "X-Api-Key", @pdl_api_key)
     return @headers
 }
@@ -103,7 +125,7 @@ function run_pdl_person_enrichment(variable seed, variable config): dictionary {
     @result = setValue(@result, "email", "")
 
     @pdl_api_key = getValue(@config, "pdl_api_key")
-    if @pdl_api_key == "" {
+    if @pdl_api_key == null || @pdl_api_key == "" {
         @result = setValue(@result, "status", "missing_credentials")
         return @result
     }
@@ -159,13 +181,31 @@ function run_pdl_person_enrichment(variable seed, variable config): dictionary {
         return @result
     }
 
-    @result = setValue(@result, "status", "ok")
+    @api_error = getValue(@raw_dictionary, "error")
+    if @api_error != null {
+        @api_error_text = trimWhitespace(text("{api_error}"))
+        if @api_error_text != "" {
+            @result = setValue(@result, "status", "provider_error")
+            return @result
+        }
+    }
+
+    @api_status = getValue(@raw_dictionary, "status")
+    if @api_status != null {
+        @api_status_text = trimWhitespace(text("{api_status}"))
+        if @api_status_text != "200" {
+            @result = setValue(@result, "status", "provider_error")
+            return @result
+        }
+    }
 
     @data = getValue(@raw_dictionary, "data")
     if typeOf(@data) != "Dictionary" {
         @result = setValue(@result, "status", "no_data")
         return @result
     }
+
+    @result = setValue(@result, "status", "ok")
 
     @full_name = getValue(@data, "full_name")
     @first_name = getValue(@data, "first_name")
@@ -214,7 +254,7 @@ function run_pdl_company_enrichment(variable seed, variable person_result, varia
     @result = setValue(@result, "domain", "")
 
     @pdl_api_key = getValue(@config, "pdl_api_key")
-    if @pdl_api_key == "" {
+    if @pdl_api_key == null || @pdl_api_key == "" {
         @result = setValue(@result, "status", "missing_credentials")
         return @result
     }
@@ -233,8 +273,15 @@ function run_pdl_company_enrichment(variable seed, variable person_result, varia
     }
 
     if @candidate_domain != "" {
-        @website = text("https://{candidate_domain}")
-        @body = setValue(@body, "website", @website)
+        @website_host = trimWhitespace(@candidate_domain)
+        @website_host = replaceText("^https?://", "", @website_host, false, true)
+        @website_host = replaceText("[/?#].*$", "", @website_host, true, true)
+        @website_host = trimWhitespace(@website_host)
+
+        if @website_host != "" {
+            @website = text("https://{website_host}")
+            @body = setValue(@body, "website", @website)
+        }
     }
 
     if count(getKeys(@body)) == 0 {
@@ -250,6 +297,24 @@ function run_pdl_company_enrichment(variable seed, variable person_result, varia
         return @result
     }
 
+    @api_error = getValue(@raw_dictionary, "error")
+    if @api_error != null {
+        @api_error_text = trimWhitespace(text("{api_error}"))
+        if @api_error_text != "" {
+            @result = setValue(@result, "status", "provider_error")
+            return @result
+        }
+    }
+
+    @api_status = getValue(@raw_dictionary, "status")
+    if @api_status != null {
+        @api_status_text = trimWhitespace(text("{api_status}"))
+        if @api_status_text != "200" {
+            @result = setValue(@result, "status", "provider_error")
+            return @result
+        }
+    }
+
     @result = setValue(@result, "status", "ok")
 
     @name_value = getValue(@raw_dictionary, "name")
@@ -259,9 +324,11 @@ function run_pdl_company_enrichment(variable seed, variable person_result, varia
 
     @website_value = getValue(@raw_dictionary, "website")
     if @website_value != null {
-        @website_text = text("{website_value}")
-        @website_text = replaceText("https://", "", @website_text)
-        @website_text = replaceText("http://", "", @website_text)
+        @website_text = trimWhitespace(text("{website_value}"))
+        @website_text = replaceText("^https?://", "", @website_text, false, true)
+        @website_text = replaceText("^www\\.", "", @website_text, false, true)
+        @website_text = replaceText("[/?#].*$", "", @website_text, true, true)
+        @website_text = trimWhitespace(@website_text)
         @result = setValue(@result, "domain", @website_text)
     }
 

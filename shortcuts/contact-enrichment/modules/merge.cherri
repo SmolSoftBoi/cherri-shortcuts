@@ -116,6 +116,12 @@ function apply_contact_updates(variable seed, variable proposal, variable select
 
     // Writable field allowlist: profile fields supported by updateContact.
     if @has_contact == "true" {
+        if @selected_contact == null || typeOf(@selected_contact) != "Contact" {
+            @result = setValue(@result, "applied_count", "0")
+            @result = setValue(@result, "summary", "No updates were applied because no contact was selected.")
+            return @result
+        }
+
         if @first_name_update != "" {
             updateContact(@selected_contact, "First Name", @first_name_update)
             @applied_count = @applied_count + 1

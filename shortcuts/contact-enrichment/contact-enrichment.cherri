@@ -133,20 +133,24 @@ validate_seed_or_stop(@phone, @email, @first_name, @last_name, @full_name, @comp
 
 @config = load_provider_config()
 @thresholds = capture_threshold_settings()
+@chatgpt_opt_in = getValue(@config, "chatgpt_opt_in")
 
 @twilio_result = run_twilio_lookup(@phone, @config)
 @person_result = run_pdl_person_enrichment(@seed, @config)
 @company_result = run_pdl_company_enrichment(@seed, @person_result, @config)
 
 @apple_result = run_apple_normalisation(@seed, @twilio_result, @person_result, @company_result)
-@chatgpt_result = run_chatgpt_resolution(@seed, @twilio_result, @person_result, @company_result, @apple_result)
-@resolved_candidates = @chatgpt_result
+@resolved_candidates = @apple_result
 
-@chatgpt_keys = getKeys(@chatgpt_result)
-@chatgpt_key_count = count(@chatgpt_keys)
+if @chatgpt_opt_in == "true" {
+    @chatgpt_result = run_chatgpt_resolution(@seed, @twilio_result, @person_result, @company_result, @apple_result)
 
-if @chatgpt_key_count == 0 {
-    @resolved_candidates = @apple_result
+    @chatgpt_keys = getKeys(@chatgpt_result)
+    @chatgpt_key_count = count(@chatgpt_keys)
+
+    if @chatgpt_key_count != 0 {
+        @resolved_candidates = @chatgpt_result
+    }
 }
 
 @validated_candidates = validate_resolved_candidates(@resolved_candidates)

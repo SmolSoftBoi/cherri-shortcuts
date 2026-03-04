@@ -13,14 +13,20 @@ Findings:
   - Twilio Account SID
   - Twilio Auth Token
   - People Data Labs API Key
+  - ChatGPT cloud conflict-resolution opt-in
 - Per-run prompts retained intentionally:
   - Manual enrichment seed prompts in `shortcuts/contact-enrichment/contact-enrichment.cherri` (phone/email/name/company/domain and related fields)
   - Confidence threshold prompts in `shortcuts/contact-enrichment/modules/config.cherri`
+
+Threshold clarification:
+- Confidence thresholds remain runtime prompts by design because they are per-run tuning controls, not stable setup constants.
+- Import-question adoption is still satisfied for stable setup values (provider credentials and ChatGPT cloud opt-in).
 
 ## Refactor Validation (Task 2.2)
 
 Refactor applied:
 - Added Cherri import questions for provider credentials in `shortcuts/contact-enrichment/modules/config.cherri`.
+- Added a Cherri import question for ChatGPT cloud conflict-resolution opt-in in `shortcuts/contact-enrichment/modules/config.cherri`.
 - Replaced runtime credential prompts with typed reads from import questions.
 
 Verification command:

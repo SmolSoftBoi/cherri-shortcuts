@@ -1,5 +1,6 @@
 # Build outputs
 *.shortcut
+*_processed.cherri
 
 # Debug artefacts
 *.plist
@@ -11,6 +12,7 @@
 # IDE and editor directories
 .vscode/
 .vscode-test/
+.idea/
 
 # OS metadata
 .DS_Store

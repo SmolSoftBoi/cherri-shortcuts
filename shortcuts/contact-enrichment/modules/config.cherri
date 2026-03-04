@@ -3,6 +3,7 @@
 #question twilio_account_sid_question "Twilio Account SID (leave blank to skip Twilio)" ""
 #question twilio_auth_token_question "Twilio Auth Token (leave blank to skip Twilio)" ""
 #question pdl_api_key_question "People Data Labs API Key (leave blank to skip PDL)" ""
+#question chatgpt_opt_in_question "Allow ChatGPT cloud conflict resolution? (yes/no)" "no"
 
 const default_name_threshold = 0.72
 const default_company_threshold = 0.70
@@ -47,9 +48,19 @@ function load_provider_config(): dictionary {
     @pdl_api_key = text(pdl_api_key_question)
     @pdl_api_key = trimWhitespace(@pdl_api_key)
 
+    @chatgpt_opt_in = text(chatgpt_opt_in_question)
+    @chatgpt_opt_in = lowercase(trimWhitespace(@chatgpt_opt_in))
+
+    if @chatgpt_opt_in == "yes" || @chatgpt_opt_in == "y" || @chatgpt_opt_in == "true" || @chatgpt_opt_in == "1" {
+        @chatgpt_opt_in = "true"
+    } else {
+        @chatgpt_opt_in = "false"
+    }
+
     @config = setValue(@config, "twilio_account_sid", @twilio_account_sid)
     @config = setValue(@config, "twilio_auth_token", @twilio_auth_token)
     @config = setValue(@config, "pdl_api_key", @pdl_api_key)
+    @config = setValue(@config, "chatgpt_opt_in", @chatgpt_opt_in)
 
     return @config
 }

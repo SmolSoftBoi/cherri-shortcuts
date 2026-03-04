@@ -60,16 +60,16 @@ This file applies to `openspec/` and its descendants.
 ### Definitions and Shortcut Contracts
 
 - Use Cherri `#define` metadata to declare shortcut input/output contracts when shortcuts are intended for chaining or reuse.
-- Keep declared `#define` input/output content-item types aligned with runtime handling (for example `ShortcutInput` branching and `typeOf(...)` checks).
+- Keep declared `#define` input/output content-item types aligned with runtime handling (for example, `ShortcutInput` branching and `typeOf(...)` checks).
 - Keep declared output types aligned with actual output surfaces and values emitted by the shortcut.
-- When `#define` contracts change runtime behaviour, update the relevant shortcut README and OpenSpec artefacts so assumptions stay explicit.
+- When `#define` contracts change runtime behaviour, update the relevant shortcut README and OpenSpec artefacts, so assumptions stay explicit.
 
 ### Import Questions
 
-- Use `#question` for setup-time values captured during shortcut import (for example provider credentials or stable default configuration values).
+- Use `#question` for setup-time values captured during shortcut import (for example, provider credentials or stable default configuration values).
 - Keep `prompt(...)` for per-run or context-dependent input; do not replace clearly runtime interactions with import questions.
-- For optional setup values, keep blank-safe defaults so the shortcut can still run and explicitly skip dependent behaviour.
-- When reusing import-question values, coerce once through a typed action (for example `text(question_id)`) and reuse the resulting variable.
+- For optional setup values, keep blank-safe defaults, so the shortcut can still run and explicitly skip dependent behaviour.
+- When reusing import-question values, coerce once through a typed action (for example, `text(question_id)`) and reuse the resulting variable.
 - Avoid relying on direct inline import-question reuse across multiple arguments/actions; prefer explicit typed intermediary variables.
 - When shortcut behaviour depends on import-question defaults or setup assumptions, update shortcut README and relevant OpenSpec artefacts.
 
@@ -77,7 +77,7 @@ This file applies to `openspec/` and its descendants.
 
 - Treat absent values (`nil`/unset) separately from intentionally empty typed values (`""`, `[]`, `{}`).
 - Use `nil` for missing optional values and optional-argument omission; do not use typed empties as a proxy for absence unless that semantic is explicit.
-- Use typed empties when a value is intentionally present-but-empty (for example cleared text, empty list, or empty dictionary state).
+- Use typed empties when a value is intentionally present-but-empty (for example, cleared text, empty list, or empty dictionary state).
 - Use `nothing()` to clear current action output only; do not use it as a substitute for empty text, dictionary, or array values.
 - At dynamic boundaries, apply explicit presence checks before coercion (`typeOf(...)`, null checks after `getValue(...)`, and `count(...)` checks before list indexing).
 - When behaviour depends on absent-vs-empty distinctions, update shortcut README and relevant OpenSpec artefacts to make assumptions explicit.

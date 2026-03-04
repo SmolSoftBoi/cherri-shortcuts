@@ -1,18 +1,18 @@
 function normalise_phone(text value_text): text {
     @phone = trimWhitespace(@value_text)
-    @phone = replaceText(" ", "", @phone)
-    @phone = replaceText("-", "", @phone)
-    @phone = replaceText("(", "", @phone)
-    @phone = replaceText(")", "", @phone)
 
     if @phone == "" {
         return ""
     }
 
-    if containsText(@phone, "+") == false {
-        @phone = text("+{phone}")
+    // Keep only digits, then apply a single canonical E.164-style '+' prefix.
+    @digits_only = replaceText("[^0-9]", "", @phone, true, true)
+
+    if @digits_only == "" {
+        return ""
     }
 
+    @phone = text("+{digits_only}")
     return @phone
 }
 

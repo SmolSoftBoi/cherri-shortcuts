@@ -189,3 +189,28 @@ python3 scripts/generate_agents.py check
 ```
 
 Result: all commands passed.
+
+## Follow-up Update (2026-03-04, Provider Hardening and ChatGPT Opt-In)
+
+A reliability and privacy hardening pass was applied to the contact enrichment shortcut.
+
+Changes validated:
+- Added import-question-controlled ChatGPT opt-in (`chatgpt_opt_in_question`) with a default of `no`.
+- Gated ChatGPT cloud resolution so it only executes when the user opt-in is explicitly enabled.
+- Minimized ChatGPT evidence payload to conflict-relevant fields and excluded direct phone/email values.
+- Hardened phone normalisation to canonical `+` plus digits-only format.
+- Added null-safe credential guards for Twilio and PDL config values.
+- Improved provider result classification (for example `invalid_phone`, `provider_error`, `invalid_response`) before trusting enrichment output.
+- Normalised PDL company-domain request/response handling to avoid malformed URL/domain values.
+- Guarded contact updates against missing/invalid selected contact objects.
+- Removed generated `contact-enrichment_processed.cherri` from source control and ignored `*_processed.cherri`.
+
+Commands run:
+
+```bash
+cherri shortcuts/contact-enrichment/contact-enrichment.cherri --no-ansi --skip-sign
+python3 scripts/generate_agents.py check
+python3 -m unittest tests/test_generate_agents.py
+```
+
+Result: all commands passed.

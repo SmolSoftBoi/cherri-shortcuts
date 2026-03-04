@@ -58,7 +58,7 @@ Rationale:
 Alternatives considered:
 - Let ChatGPT produce final patch directly: rejected due to non-determinism.
 
-### 7. Confidence thresholds configurable with defaults
+### 4. Confidence thresholds configurable with defaults
 The shortcut will expose confidence thresholds as user-configurable values, with default thresholds pre-populated when the user does not provide overrides.
 
 Rationale:
@@ -69,7 +69,7 @@ Alternatives considered:
 - Fixed global thresholds only: rejected because users have different tolerance for false positives.
 - Fully unconstrained manual thresholds with no defaults: rejected because first-run behaviour would be unclear.
 
-### 4. Mandatory preview and explicit confirmation gate
+### 5. Mandatory preview and explicit confirmation gate
 Before any `updateContact(...)` actions run, the shortcut must show proposed field-level updates and request user confirmation.
 
 Rationale:
@@ -79,7 +79,7 @@ Rationale:
 Alternatives considered:
 - Silent update mode: rejected for safety reasons.
 
-### 5. Canonical internal enrichment dictionary schema
+### 6. Canonical internal enrichment dictionary schema
 All provider and LLM outputs are normalised into one internal dictionary with field value, confidence, and evidence source metadata.
 
 Rationale:
@@ -89,7 +89,7 @@ Rationale:
 Alternatives considered:
 - Provider-specific merge branches only: rejected due to high maintenance burden.
 
-### 6. Secret handling via environment/runtime input only
+### 7. Secret handling via environment/runtime input only
 API credentials must be supplied from environment or secure runtime prompts and must not be hard-coded in sources or committed examples.
 
 Rationale:

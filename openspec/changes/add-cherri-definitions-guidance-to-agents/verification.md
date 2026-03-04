@@ -44,5 +44,6 @@ Reviewed diffs for:
 - `agents-manifest.json`
 - `AGENTS.md`
 - `.github/AGENTS.md`
+- `openspec/AGENTS.md`
 
 The change contains the intended Cherri definitions guidance updates and regenerated managed output.

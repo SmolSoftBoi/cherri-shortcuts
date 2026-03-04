@@ -22,9 +22,38 @@ function run_apple_normalisation(variable seed, variable twilio_result, variable
 }
 
 function run_chatgpt_resolution(variable seed, variable twilio_result, variable person_result, variable company_result, variable apple_result): dictionary {
-    @summary = build_evidence_summary(@seed, @twilio_result, @person_result, @company_result)
-    @apple_text = text("{apple_result}")
-    @prompt_text = text("Resolve conflicts in the enrichment dictionary using only evidence below.\nDo not invent values.\nApple pass output:\n{apple_text}\n\nReturn dictionary keys: first_name, last_name, name, company, job_title, department, nickname, domain, first_name_confidence, last_name_confidence, name_confidence, company_confidence, job_title_confidence, department_confidence, nickname_confidence, domain_confidence.\nEach confidence must be a number from 0 to 1.\n\nEvidence:\n{summary}")
+    @seed_minimal = {}
+    @seed_minimal = setValue(@seed_minimal, "first_name", getValue(@seed, "first_name"))
+    @seed_minimal = setValue(@seed_minimal, "last_name", getValue(@seed, "last_name"))
+    @seed_minimal = setValue(@seed_minimal, "name", getValue(@seed, "name"))
+    @seed_minimal = setValue(@seed_minimal, "company", getValue(@seed, "company"))
+    @seed_minimal = setValue(@seed_minimal, "job_title", getValue(@seed, "job_title"))
+    @seed_minimal = setValue(@seed_minimal, "department", getValue(@seed, "department"))
+    @seed_minimal = setValue(@seed_minimal, "nickname", getValue(@seed, "nickname"))
+    @seed_minimal = setValue(@seed_minimal, "domain", getValue(@seed, "domain"))
+
+    @twilio_minimal = {}
+    @twilio_minimal = setValue(@twilio_minimal, "status", getValue(@twilio_result, "status"))
+    @twilio_minimal = setValue(@twilio_minimal, "phone_valid", getValue(@twilio_result, "phone_valid"))
+    @twilio_minimal = setValue(@twilio_minimal, "line_type", getValue(@twilio_result, "line_type"))
+    @twilio_minimal = setValue(@twilio_minimal, "caller_name", getValue(@twilio_result, "caller_name"))
+
+    @person_minimal = {}
+    @person_minimal = setValue(@person_minimal, "status", getValue(@person_result, "status"))
+    @person_minimal = setValue(@person_minimal, "name", getValue(@person_result, "name"))
+    @person_minimal = setValue(@person_minimal, "first_name", getValue(@person_result, "first_name"))
+    @person_minimal = setValue(@person_minimal, "last_name", getValue(@person_result, "last_name"))
+    @person_minimal = setValue(@person_minimal, "company", getValue(@person_result, "company"))
+    @person_minimal = setValue(@person_minimal, "job_title", getValue(@person_result, "job_title"))
+    @person_minimal = setValue(@person_minimal, "department", getValue(@person_result, "department"))
+
+    @company_minimal = {}
+    @company_minimal = setValue(@company_minimal, "status", getValue(@company_result, "status"))
+    @company_minimal = setValue(@company_minimal, "company", getValue(@company_result, "company"))
+    @company_minimal = setValue(@company_minimal, "domain", getValue(@company_result, "domain"))
+
+    @summary = text("Seed Input (minimal):\n{seed_minimal}\n\nTwilio Lookup (minimal):\n{twilio_minimal}\n\nPDL Person (minimal):\n{person_minimal}\n\nPDL Company (minimal):\n{company_minimal}\n\nApple pass output:\n{apple_result}")
+    @prompt_text = text("Resolve conflicts in the enrichment dictionary using only evidence below.\nDo not invent values.\nReturn dictionary keys: first_name, last_name, name, company, job_title, department, nickname, domain, first_name_confidence, last_name_confidence, name_confidence, company_confidence, job_title_confidence, department_confidence, nickname_confidence, domain_confidence.\nEach confidence must be a number from 0 to 1.\n\nEvidence:\n{summary}")
 
     @response = askLLM(@prompt_text, "ChatGPT", false, "Dictionary")
 
