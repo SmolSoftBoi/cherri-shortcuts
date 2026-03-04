@@ -1,0 +1,185 @@
+#define name Contact Enrichment
+#define inputs contact, dictionary, text
+#define outputs text
+
+#include 'actions/contacts'
+#include 'actions/intelligence'
+#include 'actions/scripting'
+#include 'actions/text'
+#include 'actions/web'
+
+#include './modules/config.cherri'
+#include './modules/input.cherri'
+#include './modules/providers.cherri'
+#include './modules/llm.cherri'
+#include './modules/merge.cherri'
+
+@selected_contact = ""
+@has_contact = "false"
+
+@phone = ""
+@email = ""
+@domain = ""
+@full_name = ""
+@first_name = ""
+@last_name = ""
+@company = ""
+@job_title = ""
+@department = ""
+@nickname = ""
+
+@shortcut_input = ShortcutInput
+@shortcut_input_type = typeOf(@shortcut_input)
+@shortcut_input_text = text("{shortcut_input}")
+@shortcut_input_text = trimWhitespace(@shortcut_input_text)
+@has_shortcut_input = "true"
+
+if @shortcut_input_type == "Text" {
+    if @shortcut_input_text == "" {
+        @has_shortcut_input = "false"
+    }
+}
+
+@input_modes = ["Select Contact", "Manual Entry"]
+
+if @has_shortcut_input == "false" {
+    @input_mode = chooseFromList(@input_modes, "Choose how to provide contact seed data")
+
+    if @input_mode == "Select Contact" {
+        @has_contact = "true"
+        @selected_contact = selectContact()
+
+        @selected_fields = extract_contact_seed_fields(@selected_contact)
+        @phone = getValue(@selected_fields, "phone")
+        @email = getValue(@selected_fields, "email")
+        @domain = getValue(@selected_fields, "domain")
+        @full_name = getValue(@selected_fields, "name")
+        @first_name = getValue(@selected_fields, "first_name")
+        @last_name = getValue(@selected_fields, "last_name")
+        @company = getValue(@selected_fields, "company")
+        @job_title = getValue(@selected_fields, "job_title")
+        @department = getValue(@selected_fields, "department")
+        @nickname = getValue(@selected_fields, "nickname")
+    } else if @input_mode == "Manual Entry" {
+        @phone = prompt("Phone number (optional)")
+        @email = prompt("Email (optional)")
+        @first_name = prompt("First name (optional)")
+        @last_name = prompt("Last name (optional)")
+        @full_name = prompt("Full name (optional)")
+        @company = prompt("Company (optional)")
+        @job_title = prompt("Job title (optional)")
+        @department = prompt("Department (optional)")
+        @nickname = prompt("Nickname (optional)")
+        @domain = prompt("Company domain (optional)")
+    }
+} else {
+    @shortcut_fields = {}
+
+    if @shortcut_input_type == "Contact" {
+        @has_contact = "true"
+        @selected_contact = @shortcut_input
+        @shortcut_fields = extract_contact_seed_fields(@shortcut_input)
+    } else if @shortcut_input_type == "Dictionary" {
+        @shortcut_fields = extract_dictionary_seed_fields(@shortcut_input)
+    } else if @shortcut_input_type == "Text" {
+        @shortcut_input_text = text("{shortcut_input}")
+        @shortcut_fields = map_text_shortcut_input(@shortcut_input_text)
+    } else {
+        alert("Shortcut input type is not supported. Provide Contact, Dictionary, or Text input.", "Unsupported Shortcut Input")
+        stop()
+    }
+
+    @phone = getValue(@shortcut_fields, "phone")
+    @email = getValue(@shortcut_fields, "email")
+    @domain = getValue(@shortcut_fields, "domain")
+    @full_name = getValue(@shortcut_fields, "name")
+    @first_name = getValue(@shortcut_fields, "first_name")
+    @last_name = getValue(@shortcut_fields, "last_name")
+    @company = getValue(@shortcut_fields, "company")
+    @job_title = getValue(@shortcut_fields, "job_title")
+    @department = getValue(@shortcut_fields, "department")
+    @nickname = getValue(@shortcut_fields, "nickname")
+}
+
+@phone = normalise_phone(@phone)
+@email = trimWhitespace(@email)
+@first_name = trimWhitespace(@first_name)
+@last_name = trimWhitespace(@last_name)
+@full_name = trimWhitespace(@full_name)
+@company = trimWhitespace(@company)
+@job_title = trimWhitespace(@job_title)
+@department = trimWhitespace(@department)
+@nickname = trimWhitespace(@nickname)
+@domain = trimWhitespace(@domain)
+
+if @domain == "" {
+    @domain = derive_domain_from_email(@email)
+}
+
+validate_seed_or_stop(@phone, @email, @first_name, @last_name, @full_name, @company, @domain)
+
+@seed = {}
+@seed = setValue(@seed, "has_contact", @has_contact)
+@seed = setValue(@seed, "phone", @phone)
+@seed = setValue(@seed, "email", @email)
+@seed = setValue(@seed, "domain", @domain)
+@seed = setValue(@seed, "name", @full_name)
+@seed = setValue(@seed, "first_name", @first_name)
+@seed = setValue(@seed, "last_name", @last_name)
+@seed = setValue(@seed, "company", @company)
+@seed = setValue(@seed, "job_title", @job_title)
+@seed = setValue(@seed, "department", @department)
+@seed = setValue(@seed, "nickname", @nickname)
+
+@config = load_provider_config()
+@thresholds = capture_threshold_settings()
+@chatgpt_opt_in = getValue(@config, "chatgpt_opt_in")
+
+@twilio_result = run_twilio_lookup(@phone, @config)
+@person_result = run_pdl_person_enrichment(@seed, @config)
+@company_result = run_pdl_company_enrichment(@seed, @person_result, @config)
+
+@apple_result = run_apple_normalisation(@seed, @twilio_result, @person_result, @company_result)
+@resolved_candidates = @apple_result
+
+if @chatgpt_opt_in == "true" {
+    @chatgpt_result = run_chatgpt_resolution(@seed, @twilio_result, @person_result, @company_result, @apple_result)
+
+    @chatgpt_keys = getKeys(@chatgpt_result)
+    @chatgpt_key_count = count(@chatgpt_keys)
+
+    if @chatgpt_key_count != 0 {
+        @resolved_candidates = @chatgpt_result
+    }
+}
+
+@validated_candidates = validate_resolved_candidates(@resolved_candidates)
+
+@merge_proposal = build_merge_proposal(@seed, @validated_candidates, @thresholds)
+@update_count_text = getValue(@merge_proposal, "update_count")
+@update_count = number(@update_count_text)
+
+if @update_count == 0 {
+    show("No trusted missing-field updates were found. No changes were applied.")
+    stop()
+}
+
+@twilio_status = getValue(@twilio_result, "status")
+@person_status = getValue(@person_result, "status")
+@company_status = getValue(@company_result, "status")
+@preview = getValue(@merge_proposal, "preview")
+
+@provider_status = text("Provider statuses:\n- Twilio: {twilio_status}\n- PDL Person: {person_status}\n- PDL Company: {company_status}")
+@review_text = text("{provider_status}\n\n{preview}")
+
+@decision_options = ["Apply updates", "Cancel"]
+@decision = chooseFromList(@decision_options, @review_text)
+
+if @decision != "Apply updates" {
+    show("No changes were applied.")
+    stop()
+}
+
+@apply_result = apply_contact_updates(@seed, @merge_proposal, @selected_contact)
+@summary = getValue(@apply_result, "summary")
+show(@summary)

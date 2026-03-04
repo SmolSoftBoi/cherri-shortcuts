@@ -1,0 +1,88 @@
+// Setup-time credential capture via import questions. No secrets are hard-coded.
+
+#question twilio_account_sid_question "Twilio Account SID (leave blank to skip Twilio)" ""
+#question twilio_auth_token_question "Twilio Auth Token (leave blank to skip Twilio)" ""
+#question pdl_api_key_question "People Data Labs API Key (leave blank to skip PDL)" ""
+#question chatgpt_opt_in_question "Allow ChatGPT cloud conflict resolution? (yes/no)" "no"
+
+const default_name_threshold = 0.72
+const default_company_threshold = 0.70
+const default_role_threshold = 0.68
+const min_confidence = 0.0
+const max_confidence = 1.0
+
+function parse_bounded_number(text value_text, number fallback_value): number {
+    @trimmed_value = trimWhitespace(@value_text)
+
+    if @trimmed_value == "" {
+        return @fallback_value
+    }
+
+    @parsed_value = number(@trimmed_value)
+
+    if @parsed_value < min_confidence {
+        return min_confidence
+    }
+
+    if @parsed_value > max_confidence {
+        return max_confidence
+    }
+
+    return @parsed_value
+}
+
+function number_to_text(number value_number): text {
+    @value_text = text("{value_number}")
+    return @value_text
+}
+
+function load_provider_config(): dictionary {
+    @config = {}
+
+    @twilio_account_sid = text(twilio_account_sid_question)
+    @twilio_account_sid = trimWhitespace(@twilio_account_sid)
+
+    @twilio_auth_token = text(twilio_auth_token_question)
+    @twilio_auth_token = trimWhitespace(@twilio_auth_token)
+
+    @pdl_api_key = text(pdl_api_key_question)
+    @pdl_api_key = trimWhitespace(@pdl_api_key)
+
+    @chatgpt_opt_in = text(chatgpt_opt_in_question)
+    @chatgpt_opt_in = lowercase(trimWhitespace(@chatgpt_opt_in))
+
+    if @chatgpt_opt_in == "yes" || @chatgpt_opt_in == "y" || @chatgpt_opt_in == "true" || @chatgpt_opt_in == "1" {
+        @chatgpt_opt_in = "true"
+    } else {
+        @chatgpt_opt_in = "false"
+    }
+
+    @config = setValue(@config, "twilio_account_sid", @twilio_account_sid)
+    @config = setValue(@config, "twilio_auth_token", @twilio_auth_token)
+    @config = setValue(@config, "pdl_api_key", @pdl_api_key)
+    @config = setValue(@config, "chatgpt_opt_in", @chatgpt_opt_in)
+
+    return @config
+}
+
+function capture_threshold_settings(): dictionary {
+    @thresholds = {}
+
+    @name_default_text = number_to_text(default_name_threshold)
+    @company_default_text = number_to_text(default_company_threshold)
+    @role_default_text = number_to_text(default_role_threshold)
+
+    @name_input = prompt("Name confidence threshold (0 to 1)", "Number", @name_default_text)
+    @company_input = prompt("Company confidence threshold (0 to 1)", "Number", @company_default_text)
+    @role_input = prompt("Role confidence threshold (0 to 1)", "Number", @role_default_text)
+
+    @name_threshold = parse_bounded_number(@name_input, default_name_threshold)
+    @company_threshold = parse_bounded_number(@company_input, default_company_threshold)
+    @role_threshold = parse_bounded_number(@role_input, default_role_threshold)
+
+    @thresholds = setValue(@thresholds, "name", number_to_text(@name_threshold))
+    @thresholds = setValue(@thresholds, "company", number_to_text(@company_threshold))
+    @thresholds = setValue(@thresholds, "role", number_to_text(@role_threshold))
+
+    return @thresholds
+}

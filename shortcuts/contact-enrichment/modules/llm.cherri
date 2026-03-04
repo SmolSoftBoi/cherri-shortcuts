@@ -1,0 +1,129 @@
+function build_evidence_summary(variable seed, variable twilio_result, variable person_result, variable company_result): text {
+    @seed_text = text("{seed}")
+    @twilio_text = text("{twilio_result}")
+    @person_text = text("{person_result}")
+    @company_text = text("{company_result}")
+
+    @summary = text("Seed Input:\n{seed_text}\n\nTwilio Lookup:\n{twilio_text}\n\nPDL Person:\n{person_text}\n\nPDL Company:\n{company_text}")
+    return @summary
+}
+
+function run_apple_normalisation(variable seed, variable twilio_result, variable person_result, variable company_result): dictionary {
+    @summary = build_evidence_summary(@seed, @twilio_result, @person_result, @company_result)
+    @prompt_text = text("Normalise the evidence into a dictionary for contact enrichment.\nUse only provided evidence.\nReturn keys: first_name, last_name, name, company, job_title, department, nickname, domain, first_name_confidence, last_name_confidence, name_confidence, company_confidence, job_title_confidence, department_confidence, nickname_confidence, domain_confidence.\nEach confidence must be a number from 0 to 1.\n\nEvidence:\n{summary}")
+
+    @response = askLLM(@prompt_text, "Apple Intelligence on Device", false, "Dictionary")
+
+    if typeOf(@response) != "Dictionary" {
+        return {}
+    }
+
+    return @response
+}
+
+function run_chatgpt_resolution(variable seed, variable twilio_result, variable person_result, variable company_result, variable apple_result): dictionary {
+    @seed_minimal = {}
+    @seed_minimal = setValue(@seed_minimal, "first_name", getValue(@seed, "first_name"))
+    @seed_minimal = setValue(@seed_minimal, "last_name", getValue(@seed, "last_name"))
+    @seed_minimal = setValue(@seed_minimal, "name", getValue(@seed, "name"))
+    @seed_minimal = setValue(@seed_minimal, "company", getValue(@seed, "company"))
+    @seed_minimal = setValue(@seed_minimal, "job_title", getValue(@seed, "job_title"))
+    @seed_minimal = setValue(@seed_minimal, "department", getValue(@seed, "department"))
+    @seed_minimal = setValue(@seed_minimal, "nickname", getValue(@seed, "nickname"))
+    @seed_minimal = setValue(@seed_minimal, "domain", getValue(@seed, "domain"))
+
+    @twilio_minimal = {}
+    @twilio_minimal = setValue(@twilio_minimal, "status", getValue(@twilio_result, "status"))
+    @twilio_minimal = setValue(@twilio_minimal, "phone_valid", getValue(@twilio_result, "phone_valid"))
+    @twilio_minimal = setValue(@twilio_minimal, "line_type", getValue(@twilio_result, "line_type"))
+    @twilio_minimal = setValue(@twilio_minimal, "caller_name", getValue(@twilio_result, "caller_name"))
+
+    @person_minimal = {}
+    @person_minimal = setValue(@person_minimal, "status", getValue(@person_result, "status"))
+    @person_minimal = setValue(@person_minimal, "name", getValue(@person_result, "name"))
+    @person_minimal = setValue(@person_minimal, "first_name", getValue(@person_result, "first_name"))
+    @person_minimal = setValue(@person_minimal, "last_name", getValue(@person_result, "last_name"))
+    @person_minimal = setValue(@person_minimal, "company", getValue(@person_result, "company"))
+    @person_minimal = setValue(@person_minimal, "job_title", getValue(@person_result, "job_title"))
+    @person_minimal = setValue(@person_minimal, "department", getValue(@person_result, "department"))
+
+    @company_minimal = {}
+    @company_minimal = setValue(@company_minimal, "status", getValue(@company_result, "status"))
+    @company_minimal = setValue(@company_minimal, "company", getValue(@company_result, "company"))
+    @company_minimal = setValue(@company_minimal, "domain", getValue(@company_result, "domain"))
+
+    @summary = text("Seed Input (minimal):\n{seed_minimal}\n\nTwilio Lookup (minimal):\n{twilio_minimal}\n\nPDL Person (minimal):\n{person_minimal}\n\nPDL Company (minimal):\n{company_minimal}\n\nApple pass output:\n{apple_result}")
+    @prompt_text = text("Resolve conflicts in the enrichment dictionary using only evidence below.\nDo not invent values.\nReturn dictionary keys: first_name, last_name, name, company, job_title, department, nickname, domain, first_name_confidence, last_name_confidence, name_confidence, company_confidence, job_title_confidence, department_confidence, nickname_confidence, domain_confidence.\nEach confidence must be a number from 0 to 1.\n\nEvidence:\n{summary}")
+
+    @response = askLLM(@prompt_text, "ChatGPT", false, "Dictionary")
+
+    if typeOf(@response) != "Dictionary" {
+        return {}
+    }
+
+    return @response
+}
+
+function safe_text(variable source, text key): text {
+    @value = getValue(@source, @key)
+
+    if @value == null {
+        return ""
+    }
+
+    @value_text = text("{value}")
+    @value_text = trimWhitespace(@value_text)
+
+    return @value_text
+}
+
+function safe_confidence_text(variable source, text key): text {
+    @raw_text = safe_text(@source, @key)
+    @bounded_number = parse_bounded_number(@raw_text, 0)
+    @bounded_text = number_to_text(@bounded_number)
+    return @bounded_text
+}
+
+function validate_resolved_candidates(variable resolved): dictionary {
+    @validated = {}
+
+    if typeOf(@resolved) != "Dictionary" {
+        @validated = setValue(@validated, "first_name", "")
+        @validated = setValue(@validated, "last_name", "")
+        @validated = setValue(@validated, "name", "")
+        @validated = setValue(@validated, "company", "")
+        @validated = setValue(@validated, "job_title", "")
+        @validated = setValue(@validated, "department", "")
+        @validated = setValue(@validated, "nickname", "")
+        @validated = setValue(@validated, "domain", "")
+        @validated = setValue(@validated, "first_name_confidence", "0")
+        @validated = setValue(@validated, "last_name_confidence", "0")
+        @validated = setValue(@validated, "name_confidence", "0")
+        @validated = setValue(@validated, "company_confidence", "0")
+        @validated = setValue(@validated, "job_title_confidence", "0")
+        @validated = setValue(@validated, "department_confidence", "0")
+        @validated = setValue(@validated, "nickname_confidence", "0")
+        @validated = setValue(@validated, "domain_confidence", "0")
+        return @validated
+    }
+
+    @validated = setValue(@validated, "first_name", safe_text(@resolved, "first_name"))
+    @validated = setValue(@validated, "last_name", safe_text(@resolved, "last_name"))
+    @validated = setValue(@validated, "name", safe_text(@resolved, "name"))
+    @validated = setValue(@validated, "company", safe_text(@resolved, "company"))
+    @validated = setValue(@validated, "job_title", safe_text(@resolved, "job_title"))
+    @validated = setValue(@validated, "department", safe_text(@resolved, "department"))
+    @validated = setValue(@validated, "nickname", safe_text(@resolved, "nickname"))
+    @validated = setValue(@validated, "domain", safe_text(@resolved, "domain"))
+
+    @validated = setValue(@validated, "first_name_confidence", safe_confidence_text(@resolved, "first_name_confidence"))
+    @validated = setValue(@validated, "last_name_confidence", safe_confidence_text(@resolved, "last_name_confidence"))
+    @validated = setValue(@validated, "name_confidence", safe_confidence_text(@resolved, "name_confidence"))
+    @validated = setValue(@validated, "company_confidence", safe_confidence_text(@resolved, "company_confidence"))
+    @validated = setValue(@validated, "job_title_confidence", safe_confidence_text(@resolved, "job_title_confidence"))
+    @validated = setValue(@validated, "department_confidence", safe_confidence_text(@resolved, "department_confidence"))
+    @validated = setValue(@validated, "nickname_confidence", safe_confidence_text(@resolved, "nickname_confidence"))
+    @validated = setValue(@validated, "domain_confidence", safe_confidence_text(@resolved, "domain_confidence"))
+
+    return @validated
+}

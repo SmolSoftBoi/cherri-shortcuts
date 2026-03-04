@@ -1,5 +1,18 @@
-# Builds
+# Build outputs
 *.shortcut
+*_processed.cherri
 
-# Debug
+# Debug artefacts
 *.plist
+
+# Local environment
+.env
+.env.local
+
+# IDE and editor directories
+.vscode/
+.vscode-test/
+.idea/
+
+# OS metadata
+.DS_Store
