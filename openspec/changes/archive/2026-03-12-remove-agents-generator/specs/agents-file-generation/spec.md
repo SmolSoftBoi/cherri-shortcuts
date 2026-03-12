@@ -1,10 +1,4 @@
-# Capability: agents-file-generation
-
-## Purpose
-
-Define how the repository maintains committed `AGENTS.md` files as directly edited Markdown documents, including root and directory-scoped guidance.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Generate root AGENTS file
 The repository SHALL keep a repository-root `AGENTS.md` file under version control as a directly maintained Markdown document that contributors can edit without running a generation command.
@@ -21,3 +15,13 @@ The repository SHALL keep any supported directory-scoped `AGENTS.md` files under
 - **WHEN** a maintained subdirectory needs local agent guidance
 - **THEN** the repository stores an `AGENTS.md` file inside that directory
 - **THEN** maintainers update that file directly without running a generation command
+
+## REMOVED Requirements
+
+### Requirement: Apply explicit inheritance and overrides
+**Reason**: The manifest-driven renderer is being removed, so the repository will no longer compose `AGENTS.md` files from shared sections, overrides, and additions.
+**Migration**: Preserve any required shared guidance directly in the committed `AGENTS.md` files and review those edits like normal Markdown changes.
+
+### Requirement: Support deterministic check mode
+**Reason**: Deleting `scripts/generate_agents.py` removes the dedicated `write` and `check` workflow for validating generated output against the repository state.
+**Migration**: Stop invoking the removed CLI and update documentation or tests to rely on the directly maintained `AGENTS.md` files instead.

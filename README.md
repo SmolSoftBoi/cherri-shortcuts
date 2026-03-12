@@ -2,31 +2,13 @@
 
 A Cherri shortcuts toolkit for creating modular, maintainable Siri Shortcuts projects.
 
-## Managed AGENTS Files
+## AGENTS Files
 
-This repository generates `AGENTS.md` files from a version-controlled manifest (`agents-manifest.json`).
+This repository keeps `AGENTS.md` guidance as normal Markdown files committed to the repo.
 
-- Root file: `AGENTS.md`
-- Scoped files (current targets): `.github/AGENTS.md`, `openspec/AGENTS.md`
+- Repository-wide guidance: `AGENTS.md`
+- Scoped guidance: `.github/AGENTS.md`
 
-### Configure
+Update the relevant file directly in your change and review it like any other documentation edit.
 
-Edit `agents-manifest.json`:
-
-- `global_sections`: shared guidance applied to all generated files
-- `targets`: directory targets plus `overrides` and `additions`
-- `section_order`: deterministic section ordering
-
-### Generate
-
-```bash
-python3 scripts/generate_agents.py write
-```
-
-### Verify (Check Mode)
-
-```bash
-python3 scripts/generate_agents.py check
-```
-
-`check` exits non-zero if any managed `AGENTS.md` file is missing or out of date.
+There is no generator or manifest step for maintaining these files.
