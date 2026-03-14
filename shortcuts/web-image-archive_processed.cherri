@@ -1,0 +1,1288 @@
+if ShortcutInput {
+    @_cherri_empty_dictionary: dictionary
+    const _cherri_dictionary_type_name = typeOf(_cherri_empty_dictionary)
+    const _cherri_inputType = typeOf(ShortcutInput)
+    if _cherri_inputType == _cherri_dictionary_type_name {
+        const _cherri_input = getDictionary(ShortcutInput)
+        const _cherri_identifier = getValue(_cherri_input, "cherri_functions")
+        const _cherri_valid = number(_cherri_identifier)
+        if _cherri_valid == true {
+            const _cherri_function = getValue(_cherri_input, "function")
+            const _cherri_function_name = "{_cherri_function}"
+            const _cherri_function_args = getValue(_cherri_input, "arguments")
+            if _cherri_function_name == "runJS" {
+                const _cherri_runJS_arg_1__script = getListItem(_cherri_function_args, 1)
+                @_script: text
+                @_script = "{_cherri_runJS_arg_1__script}"
+
+const _ios17bug = replaceText("#", "\u0023", _script)
+    const _uri = url("data:text/html;charset=utf-8,<body/><script>{_ios17bug}</script>")
+    @richURI = _uri.richtext
+    const _decoded = urlDecode(richURI)
+
+    output("{_decoded}")
+            }
+            output(nil)
+        }
+    }
+}
+/*
+Basic Actions and Global Types
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// [Doc]: Stop Shortcut: Stops the shortcut.
+
+
+// [Doc]: Nothing: Clear the current output.
+
+
+// [Doc]: Comment: Add an explicit comment.
+
+
+// [Doc]: Get Type: Get the type of input.
+
+
+// [Doc]: Get Object of Class: Get the object of `class` from a variable.
+
+
+// [Doc]: [Output] Show Result: Show `input`.
+
+
+// [Doc]: [Output] Quick Look: Preview `input` in Quick Look.
+
+
+// [Doc]: [Output] Stop and Output: Stop and output `output`. Do nothing if there is nowhere to output.
+
+
+// [Doc]: [Output] Output or Copy to Clipboard: Stop and output `output`. Copy to the clipboard if there is nowhere to output.
+
+
+
+
+// [Doc]: [Output] Must Output: Stop and output `output`. Respond with response if there is nowhere to output.
+
+
+
+
+// [Doc]: [Output] Content Graph: Display input as a content graph.
+
+
+
+
+
+
+
+
+
+
+// [Doc]: Count: Returns a count of `type` of items in `input`.
+
+
+// [Doc]: [Notifications] Alert: Shows an alert with text and optional title and an OK button to proceed.
+
+
+
+
+// [Doc]: [Notifications] Confirm: Shows an alert with text and optional title. It displays an OK button to proceed, and a cancel button that stops the Shortcut.
+
+
+
+
+// [Doc]: [Notifications] Show Notification: Shows a custom notification message.
+
+
+
+
+
+
+
+// [Doc]: Number: Create a number value.
+
+
+
+
+// [Doc]: [Control Flow] Wait: Wait a specified number of seconds.
+
+
+// [Doc]: [Control Flow] Wait to Return: Wait for the user to return to Shortcuts.
+
+
+// [Doc]: [Search] Search/Spotlight: Get results from search on iOS or iPadOS, and Spotlight on macOS.
+
+
+
+#define name Web Image Archive
+#define color blue
+#define glyph archive
+#define from sharesheet, onscreen, spotlight
+
+/*
+Cherri Standard Library
+Copyright (c) Cherri
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
+Scripting Actions
+*/
+
+// [Doc]: [Dictionaries] Get Dictionary: Get the dictionary from `input`.
+
+
+// [Doc]: [Dictionaries] Get Keys from Dictionary: Get only the keys from the `dictionary`.
+
+
+
+
+// [Doc]: [Dictionaries] Get Values from Dictionary: Get only the values from the `dictionary`.
+
+
+
+
+// [Doc]: [Dictionaries] Get Value from Dictionary: For constants only, otherwise `dictionary['key']` syntax should be used.
+
+
+
+
+// [Doc]: [Dictionaries] Set Value in Dictionary: Set the value of `key` to `value` in `dictionary`.
+
+
+// [Doc]: [Items] Get Name: Get the name of an item.
+
+
+// [Doc]: [Items] Set Name: Set the name of an item.
+
+
+// [Doc]: [Lists] Choose from List: Prompts the user to choose from a list.
+
+
+
+
+
+
+
+// [Doc]: [Lists] Get First Item: Get first item in a list.
+
+
+
+
+// [Doc]: [Lists] Get Last Item: Get the last item in a list.
+
+
+
+
+// [Doc]: [Lists] Get Random Item: Get random item from list.
+
+
+
+
+// [Doc]: [Lists] Get List Item: Get item from `list` at `index`. Keep in mind Shortcuts starts counting indexes at 1.
+
+
+
+
+// [Doc]: [Lists] Get List Items: Get items from a `list` between two indexes. Keep in mind Shortcuts starts counting indexes at 1.
+
+
+
+
+// [Doc]: [Numbers] Format Number: Format number based on decimal place.
+
+
+// [Doc]: [Numbers] Get Numbers: Get numbers from input.
+
+
+// [Doc]: [Numbers] Random Number: Returns a random number between `min` and `max`.
+
+
+// [Doc]: [Passwords] Search Passwords: Searches passwords in the Passwords app.
+
+
+// [Doc]: [System] Dismiss Siri: Dismisses Siri.
+
+
+/*
+Web Actions
+*/
+
+// [Doc]: [URLs] Open URL: Open URL in default browser.
+
+
+
+
+// [Doc]: [URLs] Expand URL: Get the expanded version of a URL. For instance, returns the full URL for a short URL, or the URL which a URL immediately redirects to, etc.
+
+
+// [Doc]: [URLs] Get URLs: Get URLs from `input`.
+
+
+
+
+
+
+
+
+
+
+
+
+
+// [Doc]: [URLs] Get URL Detail: Get a detail about a URL.
+
+
+// [Doc]: [URLs] Get URL Headers: Get the headers from a URL.
+
+
+// [Doc]: [URLs] URL Encode: Encode text for a URL.
+
+
+
+
+// [Doc]: [URLs] URL Decode: Decode text from URL encoding.
+
+
+
+
+// [Doc]: [URLs] Open X-Callback URL
+
+
+// [Doc]: [Safari] Get Current URL: Get current URL in Safari.
+
+
+// [Doc]: [Safari] Show Webpage: Show webpage using Safari.
+
+
+// [Doc]: [Safari] Run JavaScript on Webpage: Run some custom JavaScript on the current webpage in Safari.
+
+
+
+
+
+
+
+
+
+// [Doc]: [Safari] Get Webpage Detail: Get a detail about a provided webpage.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// [Doc]: [Safari] Search Web: Search the web using a provided search engine and query.
+
+
+// [Doc]: [Safari] Get Webpage Contents: Get contents of Webpage from Safari.
+
+
+// [Doc]: [Giphy] Get GIFs from Giphy: Gets a number of GIFs from Giphy for a search query.
+
+
+
+
+// [Doc]: [Giphy] Search Giphy: Gets GIFs from Giphy for a search query.
+
+
+// [Doc]: [Articles] Get Article: Get article from webpage.
+
+
+// [Doc]: [Articles] Get Article Detail: Get a detail about an article.
+
+
+// [Doc]: [RSS] Get RSS: Get RSS feed contents at URL. Limited by number of items.
+
+
+// [Doc]: [RSS] Get RSS Feeds: Get feeds from multiple URLs.
+
+
+
+
+
+
+
+
+
+// [Doc]: [HTTP] Download URL: Download the contents of a URL.
+
+
+
+
+// [Doc]: [HTTP] Form Request: Send a `method` request to `url` with `body` and optional `headers.
+
+
+
+
+
+
+
+
+
+// [Doc]: [HTTP] JSON Request: Send a `method` JSON request to `url` with `body` and optional `headers.
+
+
+
+
+
+
+
+
+
+// [Doc]: [HTTP] File Request: Send a `method` file request to `url` with `body` and optional `headers.
+
+
+
+
+
+
+
+
+
+/*
+Text Editing Actions
+*/
+
+// [Doc]: [Rich Text] Make HTML: Make HTML from Rich Text.
+
+
+// [Doc]: [Rich Text] Make Rich Text from HTML
+
+
+// [Doc]: [Rich Text] Make Markdown: Make Markdown from Rich Text.
+
+
+// [Doc]: [Rich Text] Get Rich Text from Markdown
+
+
+
+
+
+
+
+
+// [Doc]: Dictation: Transcribes user recorded audio to text, optionally in another language.
+
+
+// [Doc]: Get Text from Image
+
+
+// [Doc]: Get Name of Emoji: Detects emoji in the text and returns its name.
+
+
+// [Doc]: Get Text: Get text from input.
+
+
+// [Doc]: Make Spoken Audio: Creates custom spoken audio from text with controls for rate and pitch.
+
+
+// [Doc]: Define: Returns the definition of the word.
+
+
+// [Doc]: Speak: Speaks the provided text, optionally in another language.
+
+
+// [Doc]: Transcribe Audio: Transcribes text from the provided audio.
+
+
+// [Doc]: [Text Editing] Uppercase: Transforms the text to all uppercase.
+
+
+
+
+
+// [Doc]: [Text Editing] Lowercase: Transforms the text to all lowercase.
+
+
+
+
+
+// [Doc]: [Text Editing] Capitalize: Capitalizes the text with sentence case.
+
+
+
+
+
+// [Doc]: [Text Editing] Capitalize All: Capitalizes every word in the text.
+
+
+
+
+
+// [Doc]: [Text Editing] Title Case: Capitalizes the text with Title Case.
+
+
+
+
+
+// [Doc]: [Text Editing] Alternating Case: Capitalizes the text with alternating case.
+
+
+
+
+
+// [Doc]: [Text Editing] Correct Spelling: Corrects the spelling of the provided text.
+
+
+
+
+// [Doc]: [Text Editing] Replace Text: Replace `find` in `subject`, optionally using a regular expression or case insensitive search.
+
+
+
+
+
+
+
+
+// [Doc]: [Text Editing] Trim Whitespace: Trim any whitespace from the start and end of `text`.
+
+
+// [Doc]: [Regular Expressions] Match Text: Use regular expressions to match text.
+
+
+// [Doc]: [Regular Expressions] Get Match Group: Get match group at `index` in `matches`.
+
+
+
+
+// [Doc]: [Regular Expressions] Get Match Groups: Get all groups in `matches`.
+
+
+
+
+/*
+Document Actions
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+// [Doc]: [Archives] Make Archive: Create an archive of `files` named `name` in `format`.
+
+
+// [Doc]: [Archives] Extract Archive: Extract files from the archive `file`.
+
+
+// [Doc]: [Books] Add to Books: Add `input` to books. `input` is expected to be a PDF or epub file.
+
+
+// [Doc]: [Editing] Markup: Opens document in a markup editor.
+
+
+// [Doc]: [Files & Folders] Get File Link: Get a link for the provided file.
+
+
+// [Doc]: [Files & Folders] Append File: Append text to a file.
+
+
+
+
+// [Doc]: [Files & Folders] Prepend File: Prepend text to a file.
+
+
+
+
+// [Doc]: [Files & Folders] Create Folder: Create a folder.
+
+
+// [Doc]: [Files & Folders] Delete Files: Delete a file or multiple files.
+
+
+// [Doc]: [Files & Folders] Select File: Prompt the user to select one or optionally multiple files.
+
+
+// [Doc]: [Files & Folders] Select Folder: Prompt the user to select one or optionally multiple folders.
+
+
+
+
+// [Doc]: [Files & Folders] Get File: Get file from a path in the Shortcuts folder.
+
+
+// [Doc]: [Files & Folders] Open File: Open a file.
+
+
+// [Doc]: [Files & Folders] Get Parent Directory: Get the parent directory of the input directory.
+
+
+
+
+
+
+
+
+
+
+
+// [Doc]: [Files & Folders] Get File Detail: Get a detail about a file.
+
+
+// [Doc]: [Files & Folders] Get Selected
+
+
+// [Doc]: [Files & Folders] Reveal in Finder
+
+
+// [Doc]: [Files & Folders] Rename File
+
+
+// [Doc]: [Files & Folders] Save File Prompt: Prompt the user to choose a location to save the file.
+
+
+// [Doc]: [Files & Folders] Save File: Save contents to a file at the specified path.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// [Doc]: [Files & Folders] File Size: Returns the size of a file.
+
+
+
+
+// [Doc]: [Notes] Open Note: Open note in the Notes app.
+
+
+// [Doc]: [Notes] Append Note: Append text to a note.
+
+
+// [Doc]: [Notes] Show Quick Note: Show quick note.
+
+
+// [Doc]: [Printing] Print: Print input to a printer.
+
+
+
+
+
+
+
+
+
+// [Doc]: [QR Codes] Make QR Code
+
+
+// [Doc]: Convert to USDZ
+
+
+/*
+Apple Intelligence actions.
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// [Doc]: [Language Models] Ask LLM: Ask a specific LLM using a prompt. Follow up will open a follow-up prompt to the model.
+
+
+
+
+
+
+
+// [Doc]: [Language Models] Ask Private Cloud Compute LLM: Ask a private cloud compute LLM using a prompt. Follow up will open a follow-up prompt to the model.
+
+
+
+
+
+
+// [Doc]: [Language Models] Ask On-Device LLM: Ask an On-Device LLM using a prompt. Follow up will open a follow-up prompt to the model.
+
+
+
+
+
+
+
+
+// [Doc]: [Language Models] Ask Chat GPT: Ask Chat GPT using a prompt. Follow up will open a follow-up prompt to the model.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// [Doc]: [Writing Tools] Adjust Text Tone: Adjust the tone of the text using Apple Intelligence Writing Tools.
+
+
+// [Doc]: [Writing Tools] Make List From Text: Generate list from text  using Apple Intelligence Writing Tools.
+
+
+// [Doc]: [Writing Tools] Make Table From Text: Generate table from text using Apple Intelligence Writing Tools.
+
+
+// [Doc]: [Writing Tools] Proofread Text: Generate a proofread version of text using Apple Intelligence Writing Tools.
+
+
+// [Doc]: [Writing Tools] Rewrite Text: Generate a rewritten version of text using Apple Intelligence Writing Tools.
+
+
+// [Doc]: [Writing Tools] Summarize Text: Generate a summarized version of text using Apple Intelligence Writing Tools.
+
+
+// [Doc]: [Writing Tools] Summarize Text Key Points: Generate a summary of key points of text using Apple Intelligence Writing Tools.
+
+
+
+
+/*
+Calendar Actions
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// [Doc]: [Calendars] Add Calendar: Create a calendar with `name`.
+
+
+// [Doc]: [Calendars] Open Event in Calendar: Show `event` in the calendar app.
+
+
+// [Doc]: [Calendars] Edit Event: Edit a detail of an event. Provide an event, a detail to modify, and a new value for that detail.
+
+
+// [Doc]: [Calendars] Get Event Detail: Get a detail of an event.
+
+
+// [Doc]: [Calendars] Remove Events: Remove an event.
+
+
+// [Doc]: [Reminders] Open Reminders List
+
+
+// [Doc]: [Reminders] Add Quick Reminder
+
+
+// [Doc]: [Reminders] Remove Reminders
+
+
+// [Doc]: [Alarms] Get Alarms: Returns all of the alarms on the device.
+
+
+// [Doc]: [Timers] Start Timer: Creates a new timer.
+
+
+// [Doc]: [Dates] Get Dates: Get dates from input.
+
+
+// [Doc]: [Dates] Date: Create a date value from `date`. Example: October 5, 2022.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// [Doc]: [Dates] Adjust Date: Adjust a date or get the start of a time period.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// [Doc]: [Dates] Get Holiday Date: Get the date of a holiday, optionally specifically for a few past or future years.
+
+
+// [Doc]: [Dates] Current Date: Get the current date.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// [Doc]: [Formatting] Format Date: Format a date using a standard or custom format.
+
+
+
+
+// [Doc]: [Formatting] Format Time: Format a time using a standard or custom format.
+
+
+
+
+// [Doc]: [Formatting] Format Timestamp: Format a timestamp using standard formats and/or a custom date format.
+
+
+
+
+
+
+
+/*
+Cryptography Actions
+*/
+
+// [Doc]: Base 64 Encode: Base 64 encodes input.
+
+
+
+
+// [Doc]: Base 64 Decode: Base 64 decodes input.
+
+
+
+
+
+
+
+
+
+
+
+// [Doc]: Hash: Generate a hash of type using input.
+
+
+
+comment('Archive images from a Safari page or supported workflow input, then optionally enrich the archive metadata with a compatible model.')
+
+const shortcutTitle = "Web Image Archive"
+const pageNameDetail = "Name"
+const sourcePageMessage = "Provide a webpage URL through the Share Sheet, on-screen content, or Spotlight, or run this shortcut from an open Safari page."
+const noImagesMessage = "No downloadable images were found for the selected webpage."
+const invalidFilenamePattern = "[^A-Za-z0-9._ -]+"
+const whitespacePattern = "\\s+"
+const hyphenText = "-"
+const tabSeparator = "\t"
+const newlineSeparator = "\n"
+const metadataProviderPrompt = "Choose an optional metadata provider."
+const textResultType = "Text"
+
+const currentSafariURLValue = getCurrentURL()
+const currentSafariURL = getText(currentSafariURLValue)
+@workflowInputText = ""
+
+if ShortcutInput {
+    @workflowInputText = getText(ShortcutInput)
+}
+
+const workflowInputURLs = getURLs(workflowInputText)
+@resolvedPageURL = ""
+
+if workflowInputURLs {
+    const workflowInputURLValue = getListItem(workflowInputURLs, 1)
+    const workflowInputURLText = getText(workflowInputURLValue)
+    @resolvedPageURL = workflowInputURLText
+}
+
+if !resolvedPageURL {
+    @resolvedPageURL = currentSafariURL
+}
+
+if !resolvedPageURL {
+    alert(sourcePageMessage, shortcutTitle)
+    stop()
+}
+
+const currentPage = getWebpageContents(resolvedPageURL)
+const currentPageTitleValue = getWebPageDetail(currentPage, pageNameDetail)
+const currentPageTitleText = getText(currentPageTitleValue)
+@currentPageTitle = resolvedPageURL
+
+if currentPageTitleText != "" {
+    @currentPageTitle = currentPageTitleText
+}
+
+const currentDateValue = currentDate()
+const runStamp = formatDate(currentDateValue, "Custom", "yyyyMMdd-HHmmss")
+
+const pageSlugUnsafe = replaceText(invalidFilenamePattern, hyphenText, currentPageTitle, true, true)
+const pageSlugCollapsed = replaceText(whitespacePattern, hyphenText, pageSlugUnsafe, true, true)
+const pageSlugTrimmed = trimWhitespace(pageSlugCollapsed)
+@pageSlug = "webpage-images"
+
+if pageSlugTrimmed != "" {
+    @pageSlug = pageSlugTrimmed
+}
+
+const workingFolderPath = "Web Image Archive/{pageSlug}-{runStamp}"
+createFolder(workingFolderPath)
+
+const embeddedExtractor = embedFile("shortcuts/support/extract_page_images.js")
+const extractionScript = base64Decode(embeddedExtractor)
+@imageURLs = []
+@hasDiscoveredImages = false
+
+if currentSafariURL != "" && currentSafariURL == resolvedPageURL {
+    const liveExtractedImageData = runJS(extractionScript)
+    const liveImageURLs = getURLs(liveExtractedImageData)
+
+    if liveImageURLs {
+        @imageURLs = liveImageURLs
+        @hasDiscoveredImages = true
+    }
+}
+
+if !hasDiscoveredImages {
+    const fallbackPageDownload = downloadURL(resolvedPageURL)
+    const fallbackPageText = getText(fallbackPageDownload)
+    const fallbackCandidateURLs = getURLs(fallbackPageText)
+
+    @fallbackImageURLs = []
+    @fallbackImageIndex = 0
+    @hasFallbackImages = false
+    @seenImageURLLines = newlineSeparator
+
+    for fallbackCandidateURLValue in fallbackCandidateURLs {
+        const fallbackCandidateURL = getText(fallbackCandidateURLValue)
+        const fallbackCandidatePathValue = getURLDetail(fallbackCandidateURL, "Path")
+        const fallbackCandidatePathText = getText(fallbackCandidatePathValue)
+        const fallbackCandidatePath = "{fallbackCandidatePathText}"
+        @isImageCandidate = false
+
+        if fallbackCandidatePath endsWith ".avif" {
+            @isImageCandidate = true
+        }
+
+        if fallbackCandidatePath endsWith ".bmp" {
+            @isImageCandidate = true
+        }
+
+        if fallbackCandidatePath endsWith ".gif" {
+            @isImageCandidate = true
+        }
+
+        if fallbackCandidatePath endsWith ".heic" {
+            @isImageCandidate = true
+        }
+
+        if fallbackCandidatePath endsWith ".heif" {
+            @isImageCandidate = true
+        }
+
+        if fallbackCandidatePath endsWith ".jpeg" {
+            @isImageCandidate = true
+        }
+
+        if fallbackCandidatePath endsWith ".jpg" {
+            @isImageCandidate = true
+        }
+
+        if fallbackCandidatePath endsWith ".png" {
+            @isImageCandidate = true
+        }
+
+        if fallbackCandidatePath endsWith ".svg" {
+            @isImageCandidate = true
+        }
+
+        if fallbackCandidatePath endsWith ".tif" {
+            @isImageCandidate = true
+        }
+
+        if fallbackCandidatePath endsWith ".tiff" {
+            @isImageCandidate = true
+        }
+
+        if fallbackCandidatePath endsWith ".webp" {
+            @isImageCandidate = true
+        }
+
+        if isImageCandidate {
+            const seenImageURLText = "{seenImageURLLines}"
+
+            if seenImageURLText !contains fallbackCandidateURL {
+                @fallbackImageIndex += 1
+                @hasFallbackImages = true
+                @seenImageURLLines = "{seenImageURLLines}{fallbackCandidateURL}{newlineSeparator}"
+                @fallbackImageURLs += fallbackCandidateURL
+            }
+        }
+    }
+
+    if hasFallbackImages {
+        @imageURLs = fallbackImageURLs
+        @hasDiscoveredImages = true
+    }
+}
+
+if !hasDiscoveredImages {
+    alert(noImagesMessage, shortcutTitle)
+    stop()
+}
+@downloadedFiles = []
+@fileManifestText = ""
+@downloadIndex = 0
+
+for imageURLValue in imageURLs {
+    const imageURL = getText(imageURLValue)
+    const imageURLPathValue = getURLDetail(imageURL, "Path")
+    const imageURLPath = getText(imageURLPathValue)
+    const imagePathSegments = splitText(imageURLPath, "/")
+    const imagePathCount = count(imagePathSegments)
+    const rawFileNameValue = getListItem(imagePathSegments, imagePathCount)
+    const rawFileNameText = getText(rawFileNameValue)
+    const rawFileName = urlDecode(rawFileNameText)
+    const safeFileNameUnsafe = replaceText(invalidFilenamePattern, hyphenText, rawFileName, true, true)
+    const safeFileNameCollapsed = replaceText(whitespacePattern, hyphenText, safeFileNameUnsafe, true, true)
+    const safeFileNameTrimmed = trimWhitespace(safeFileNameCollapsed)
+
+    @safeFileName = "image.jpg"
+
+    if safeFileNameTrimmed != "" {
+        @safeFileName = safeFileNameTrimmed
+    }
+
+    @downloadIndex += 1
+    const suggestedFileName = "{downloadIndex}-{safeFileName}"
+    const downloadedFile = downloadURL(imageURL)
+    const storedFilePath = "{workingFolderPath}/{suggestedFileName}"
+
+    saveFile(storedFilePath, downloadedFile, true)
+
+    const storedFile = getFile(storedFilePath)
+    @downloadedFiles += storedFile
+
+    @manifestLine = "- {suggestedFileName} | {imageURL}"
+
+    if fileManifestText != "" {
+        @fileManifestText = "{fileManifestText}{newlineSeparator}{manifestLine}"
+    } else {
+        @fileManifestText = manifestLine
+    }
+}
+
+const downloadedCount = count(downloadedFiles)
+const fallbackArchiveBaseName = "{pageSlug}-{runStamp}"
+@archiveSummary = "Downloaded {downloadedCount} images from {currentPageTitle}."
+@archiveTags = "webpage, images, archive"
+@archiveBaseName = fallbackArchiveBaseName
+@archiveNameSuggestion = ""
+@archiveSummarySuggestion = ""
+@archiveTagsSuggestion = ""
+
+const archiveNamePrompt = "
+Return only a short archive name.
+
+Rules:
+- 2 to 6 words.
+- Filesystem-safe.
+- Use only letters, numbers, spaces, dashes, or underscores.
+- Do not add punctuation beyond dashes or underscores.
+
+Page title: {currentPageTitle}
+Page URL: {resolvedPageURL}
+Image count: {downloadedCount}
+Images:
+{fileManifestText}
+"
+
+const archiveSummaryPrompt = "
+Return only one sentence that summarises this image archive.
+
+Page title: {currentPageTitle}
+Page URL: {resolvedPageURL}
+Image count: {downloadedCount}
+Images:
+{fileManifestText}
+"
+
+const archiveTagsPrompt = "
+Return only a comma-separated list of lowercase tags for this archive.
+
+Page title: {currentPageTitle}
+Page URL: {resolvedPageURL}
+Image count: {downloadedCount}
+Images:
+{fileManifestText}
+"
+
+const metadataProviders = list(
+    "Skip metadata",
+    "Apple Intelligence on Device",
+    "Private Cloud Compute",
+    "ChatGPT"
+)
+const metadataProvider = chooseFromList(metadataProviders, metadataProviderPrompt)
+
+if metadataProvider == "Apple Intelligence on Device" {
+    const deviceArchiveNameSuggestionValue = askDeviceLLM(archiveNamePrompt, false, textResultType)
+    const deviceArchiveSummarySuggestionValue = askDeviceLLM(archiveSummaryPrompt, false, textResultType)
+    const deviceArchiveTagsSuggestionValue = askDeviceLLM(archiveTagsPrompt, false, textResultType)
+
+    @archiveNameSuggestion = trimWhitespace(deviceArchiveNameSuggestionValue)
+    @archiveSummarySuggestion = trimWhitespace(deviceArchiveSummarySuggestionValue)
+    @archiveTagsSuggestion = trimWhitespace(deviceArchiveTagsSuggestionValue)
+}
+
+if metadataProvider == "Private Cloud Compute" {
+    const cloudArchiveNameSuggestionValue = askCloudLLM(archiveNamePrompt, false, textResultType)
+    const cloudArchiveSummarySuggestionValue = askCloudLLM(archiveSummaryPrompt, false, textResultType)
+    const cloudArchiveTagsSuggestionValue = askCloudLLM(archiveTagsPrompt, false, textResultType)
+
+    @archiveNameSuggestion = trimWhitespace(cloudArchiveNameSuggestionValue)
+    @archiveSummarySuggestion = trimWhitespace(cloudArchiveSummarySuggestionValue)
+    @archiveTagsSuggestion = trimWhitespace(cloudArchiveTagsSuggestionValue)
+}
+
+if metadataProvider == "ChatGPT" {
+    const chatGPTArchiveNameSuggestionValue = askChatGPT(archiveNamePrompt, false, textResultType)
+    const chatGPTArchiveSummarySuggestionValue = askChatGPT(archiveSummaryPrompt, false, textResultType)
+    const chatGPTArchiveTagsSuggestionValue = askChatGPT(archiveTagsPrompt, false, textResultType)
+
+    @archiveNameSuggestion = trimWhitespace(chatGPTArchiveNameSuggestionValue)
+    @archiveSummarySuggestion = trimWhitespace(chatGPTArchiveSummarySuggestionValue)
+    @archiveTagsSuggestion = trimWhitespace(chatGPTArchiveTagsSuggestionValue)
+}
+
+const cleanedArchiveName = replaceText(invalidFilenamePattern, hyphenText, archiveNameSuggestion, true, true)
+
+if cleanedArchiveName != "" {
+    @archiveBaseName = cleanedArchiveName
+}
+
+if archiveSummarySuggestion != "" {
+    @archiveSummary = archiveSummarySuggestion
+}
+
+if archiveTagsSuggestion != "" {
+    @archiveTags = archiveTagsSuggestion
+}
+
+const manifestText = "
+Archive: {archiveBaseName}.zip
+Source page: {currentPageTitle}
+Source URL: {resolvedPageURL}
+Created at: {runStamp}
+Summary: {archiveSummary}
+Tags: {archiveTags}
+
+Files:
+{fileManifestText}
+"
+
+const manifestPath = "{workingFolderPath}/manifest.txt"
+saveFile(manifestPath, manifestText, true)
+
+const manifestFile = getFile(manifestPath)
+@archiveInputs = downloadedFiles
+@archiveInputs += manifestFile
+
+const rawArchive = makeArchive(archiveInputs)
+const archiveFileName = "{archiveBaseName}.zip"
+const archive = setName(rawArchive, archiveFileName, true)
+const successMessage = "Prepared {archiveFileName} with {downloadedCount} images."
+
+saveFilePrompt(archive, true)
+show(successMessage)

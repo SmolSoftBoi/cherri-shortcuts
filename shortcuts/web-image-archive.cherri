@@ -1,0 +1,452 @@
+#define name Web Image Archive
+#define color blue
+#define glyph archive
+#define from sharesheet, onscreen, spotlight
+
+#include 'stdlib'
+
+#include 'actions/scripting'
+#include 'actions/web'
+#include 'actions/text'
+#include 'actions/documents'
+#include 'actions/images'
+#include 'actions/intelligence'
+#include 'actions/calendar'
+#include 'actions/crypto'
+
+comment('Archive images from a Safari page or supported workflow input, then optionally enrich the archive metadata with a compatible model.')
+
+const shortcutTitle = "Web Image Archive"
+const pageNameDetail = "Name"
+const sourcePageMessage = "Provide a webpage URL through the Share Sheet, on-screen content, or Spotlight, or run this shortcut from an open Safari page."
+const noImagesMessage = "No downloadable images were found for the selected webpage."
+const invalidFilenamePattern = "[^A-Za-z0-9._ -]+"
+const whitespacePattern = "\\s+"
+const hyphenText = "-"
+const tabSeparator = "\t"
+const newlineSeparator = "\n"
+const processingModePrompt = "Choose how the archive should prepare supported images."
+const metadataProviderPrompt = "Choose an optional metadata provider."
+const textResultType = "Text"
+const originalFilesMode = "Original files"
+const smallerJPEGMode = "JPEG (smaller)"
+const smallerHEIFMode = "HEIF (smaller on Apple devices)"
+
+const currentSafariURLValue = getCurrentURL()
+const currentSafariURL = getText(currentSafariURLValue)
+@workflowInputText = ""
+
+if ShortcutInput {
+    @workflowInputText = getText(ShortcutInput)
+}
+
+const workflowInputURLs = getURLs(workflowInputText)
+@resolvedPageURL = ""
+
+if workflowInputURLs {
+    const workflowInputURLValue = getListItem(workflowInputURLs, 1)
+    const workflowInputURLText = getText(workflowInputURLValue)
+    @resolvedPageURL = workflowInputURLText
+}
+
+if !resolvedPageURL {
+    @resolvedPageURL = currentSafariURL
+}
+
+if !resolvedPageURL {
+    alert(sourcePageMessage, shortcutTitle)
+    stop()
+}
+
+const currentPage = getWebpageContents(resolvedPageURL)
+const currentPageTitleValue = getWebPageDetail(currentPage, pageNameDetail)
+const currentPageTitleText = getText(currentPageTitleValue)
+@currentPageTitle = resolvedPageURL
+
+if currentPageTitleText != "" {
+    @currentPageTitle = currentPageTitleText
+}
+
+const currentDateValue = currentDate()
+const runStamp = formatDate(currentDateValue, "Custom", "yyyyMMdd-HHmmss")
+
+const pageSlugUnsafe = replaceText(invalidFilenamePattern, hyphenText, currentPageTitle, true, true)
+const pageSlugCollapsed = replaceText(whitespacePattern, hyphenText, pageSlugUnsafe, true, true)
+const pageSlugTrimmed = trimWhitespace(pageSlugCollapsed)
+@pageSlug = "webpage-images"
+
+if pageSlugTrimmed != "" {
+    @pageSlug = pageSlugTrimmed
+}
+
+const workingFolderPath = "Web Image Archive/{pageSlug}-{runStamp}"
+createFolder(workingFolderPath)
+
+const embeddedExtractor = embedFile("shortcuts/support/extract_page_images.js")
+const extractionScript = base64Decode(embeddedExtractor)
+@imageURLs = []
+@hasDiscoveredImages = false
+
+if currentSafariURL != "" && currentSafariURL == resolvedPageURL {
+    const liveExtractedImageData = runJS(extractionScript)
+    const liveImageURLs = getURLs(liveExtractedImageData)
+
+    if liveImageURLs {
+        @imageURLs = liveImageURLs
+        @hasDiscoveredImages = true
+    }
+}
+
+if !hasDiscoveredImages {
+    const fallbackPageDownload = downloadURL(resolvedPageURL)
+    const fallbackPageText = getText(fallbackPageDownload)
+    const fallbackCandidateURLs = getURLs(fallbackPageText)
+
+    @fallbackImageURLs = []
+    @fallbackImageIndex = 0
+    @hasFallbackImages = false
+    @seenImageURLLines = newlineSeparator
+
+    for fallbackCandidateURLValue in fallbackCandidateURLs {
+        const fallbackCandidateURL = getText(fallbackCandidateURLValue)
+        const fallbackCandidatePathValue = getURLDetail(fallbackCandidateURL, "Path")
+        const fallbackCandidatePathText = getText(fallbackCandidatePathValue)
+        const fallbackCandidatePath = "{fallbackCandidatePathText}"
+        @isImageCandidate = false
+
+        if fallbackCandidatePath endsWith ".avif" {
+            @isImageCandidate = true
+        }
+
+        if fallbackCandidatePath endsWith ".bmp" {
+            @isImageCandidate = true
+        }
+
+        if fallbackCandidatePath endsWith ".gif" {
+            @isImageCandidate = true
+        }
+
+        if fallbackCandidatePath endsWith ".heic" {
+            @isImageCandidate = true
+        }
+
+        if fallbackCandidatePath endsWith ".heif" {
+            @isImageCandidate = true
+        }
+
+        if fallbackCandidatePath endsWith ".jpeg" {
+            @isImageCandidate = true
+        }
+
+        if fallbackCandidatePath endsWith ".jpg" {
+            @isImageCandidate = true
+        }
+
+        if fallbackCandidatePath endsWith ".png" {
+            @isImageCandidate = true
+        }
+
+        if fallbackCandidatePath endsWith ".svg" {
+            @isImageCandidate = true
+        }
+
+        if fallbackCandidatePath endsWith ".tif" {
+            @isImageCandidate = true
+        }
+
+        if fallbackCandidatePath endsWith ".tiff" {
+            @isImageCandidate = true
+        }
+
+        if fallbackCandidatePath endsWith ".webp" {
+            @isImageCandidate = true
+        }
+
+        if isImageCandidate {
+            const seenImageURLText = "{seenImageURLLines}"
+
+            if seenImageURLText !contains fallbackCandidateURL {
+                @fallbackImageIndex += 1
+                @hasFallbackImages = true
+                @seenImageURLLines = "{seenImageURLLines}{fallbackCandidateURL}{newlineSeparator}"
+                @fallbackImageURLs += fallbackCandidateURL
+            }
+        }
+    }
+
+    if hasFallbackImages {
+        @imageURLs = fallbackImageURLs
+        @hasDiscoveredImages = true
+    }
+}
+
+if !hasDiscoveredImages {
+    alert(noImagesMessage, shortcutTitle)
+    stop()
+}
+
+const processingModes = list(
+    originalFilesMode,
+    smallerJPEGMode,
+    smallerHEIFMode
+)
+const imageProcessingMode = chooseFromList(processingModes, processingModePrompt)
+@processingModeSummary = "Archive the downloaded files without image conversion."
+@optimisedImageCount = 0
+@preservedOriginalCount = 0
+
+if imageProcessingMode == smallerJPEGMode {
+    @processingModeSummary = "Convert supported still images to JPEG with smaller file sizes and stripped metadata."
+}
+
+if imageProcessingMode == smallerHEIFMode {
+    @processingModeSummary = "Convert supported still images to HEIF with smaller file sizes and stripped metadata."
+}
+
+@downloadedFiles = []
+@fileManifestText = ""
+@downloadIndex = 0
+
+for imageURLValue in imageURLs {
+    const imageURL = getText(imageURLValue)
+    const imageURLPathValue = getURLDetail(imageURL, "Path")
+    const imageURLPath = getText(imageURLPathValue)
+    const imagePathSegments = splitText(imageURLPath, "/")
+    const imagePathCount = count(imagePathSegments)
+    const rawFileNameValue = getListItem(imagePathSegments, imagePathCount)
+    const rawFileNameText = getText(rawFileNameValue)
+    const rawFileName = urlDecode(rawFileNameText)
+    const safeFileNameUnsafe = replaceText(invalidFilenamePattern, hyphenText, rawFileName, true, true)
+    const safeFileNameCollapsed = replaceText(whitespacePattern, hyphenText, safeFileNameUnsafe, true, true)
+    const safeFileNameTrimmed = trimWhitespace(safeFileNameCollapsed)
+
+    @safeFileName = "image.jpg"
+
+    if safeFileNameTrimmed != "" {
+        @safeFileName = safeFileNameTrimmed
+    }
+
+    @downloadIndex += 1
+    const suggestedFileName = "{downloadIndex}-{safeFileName}"
+    const downloadedFile = downloadURL(imageURL)
+    const lowercaseSafeFileNameValue = lowercase(safeFileName)
+    const lowercaseSafeFileName = getText(lowercaseSafeFileNameValue)
+    const lowercaseSafeFileNameText = "{lowercaseSafeFileName}"
+    const safeFileStemValue = replaceText("\\.[^.]+$", "", safeFileName, true, true)
+
+    @safeFileStem = safeFileName
+
+    if safeFileStemValue != "" {
+        @safeFileStem = safeFileStemValue
+    }
+
+    @processedFileName = suggestedFileName
+    @processedFileContent = downloadedFile
+    @processingNote = "original"
+    @shouldPreserveOriginalFile = true
+    @isConvertibleCandidate = true
+
+    if imageProcessingMode != originalFilesMode {
+        if lowercaseSafeFileNameText endsWith ".gif" {
+            @isConvertibleCandidate = false
+        }
+
+        if lowercaseSafeFileNameText endsWith ".svg" {
+            @isConvertibleCandidate = false
+        }
+
+        if isConvertibleCandidate {
+            const extractedDownloadedImages = getImages(downloadedFile)
+
+            if extractedDownloadedImages {
+                const firstDownloadedImage = getListItem(extractedDownloadedImages, 1)
+
+                if imageProcessingMode == smallerJPEGMode {
+                    const convertedJPEGImage = convertToJPEG(firstDownloadedImage, 65, false)
+                    @processedFileName = "{downloadIndex}-{safeFileStem}.jpg"
+                    @processedFileContent = convertedJPEGImage
+                    @processingNote = "converted to jpeg"
+                    @shouldPreserveOriginalFile = false
+                }
+
+                if imageProcessingMode == smallerHEIFMode {
+                    const convertedHEIFImage = convertImage(firstDownloadedImage, "HEIF", 0.65, false)
+                    @processedFileName = "{downloadIndex}-{safeFileStem}.heif"
+                    @processedFileContent = convertedHEIFImage
+                    @processingNote = "converted to heif"
+                    @shouldPreserveOriginalFile = false
+                }
+            }
+        }
+    }
+
+    if shouldPreserveOriginalFile {
+        @preservedOriginalCount += 1
+
+        if imageProcessingMode != originalFilesMode {
+            @processingNote = "kept original"
+        }
+    } else {
+        @optimisedImageCount += 1
+    }
+
+    const storedFilePath = "{workingFolderPath}/{processedFileName}"
+
+    saveFile(storedFilePath, processedFileContent, true)
+
+    const storedFile = getFile(storedFilePath)
+    @downloadedFiles += storedFile
+
+    @manifestLine = "- {processedFileName} | {imageURL} | {processingNote}"
+
+    if fileManifestText != "" {
+        @fileManifestText = "{fileManifestText}{newlineSeparator}{manifestLine}"
+    } else {
+        @fileManifestText = manifestLine
+    }
+}
+
+const downloadedCount = count(downloadedFiles)
+const fallbackArchiveBaseName = "{pageSlug}-{runStamp}"
+@archiveSummary = "Prepared {downloadedCount} images from {currentPageTitle} using {imageProcessingMode} mode."
+@archiveTags = "webpage, images, archive"
+@archiveBaseName = fallbackArchiveBaseName
+@archiveNameSuggestion = ""
+@archiveSummarySuggestion = ""
+@archiveTagsSuggestion = ""
+
+if imageProcessingMode == smallerJPEGMode {
+    @archiveTags = "webpage, images, archive, jpeg, optimised"
+}
+
+if imageProcessingMode == smallerHEIFMode {
+    @archiveTags = "webpage, images, archive, heif, optimised"
+}
+
+const archiveNamePrompt = "
+Return only a short archive name.
+
+Rules:
+- 2 to 6 words.
+- Filesystem-safe.
+- Use only letters, numbers, spaces, dashes, or underscores.
+- Do not add punctuation beyond dashes or underscores.
+
+Page title: {currentPageTitle}
+Page URL: {resolvedPageURL}
+Image count: {downloadedCount}
+Processing mode: {imageProcessingMode}
+Optimised files: {optimisedImageCount}
+Original files kept: {preservedOriginalCount}
+Images:
+{fileManifestText}
+"
+
+const archiveSummaryPrompt = "
+Return only one sentence that summarises this image archive.
+
+Page title: {currentPageTitle}
+Page URL: {resolvedPageURL}
+Image count: {downloadedCount}
+Processing mode: {imageProcessingMode}
+Optimised files: {optimisedImageCount}
+Original files kept: {preservedOriginalCount}
+Images:
+{fileManifestText}
+"
+
+const archiveTagsPrompt = "
+Return only a comma-separated list of lowercase tags for this archive.
+
+Page title: {currentPageTitle}
+Page URL: {resolvedPageURL}
+Image count: {downloadedCount}
+Processing mode: {imageProcessingMode}
+Optimised files: {optimisedImageCount}
+Original files kept: {preservedOriginalCount}
+Images:
+{fileManifestText}
+"
+
+const metadataProviders = list(
+    "Skip metadata",
+    "Apple Intelligence on Device",
+    "Private Cloud Compute",
+    "ChatGPT"
+)
+const metadataProvider = chooseFromList(metadataProviders, metadataProviderPrompt)
+
+if metadataProvider == "Apple Intelligence on Device" {
+    const deviceArchiveNameSuggestionValue = askDeviceLLM(archiveNamePrompt, false, textResultType)
+    const deviceArchiveSummarySuggestionValue = askDeviceLLM(archiveSummaryPrompt, false, textResultType)
+    const deviceArchiveTagsSuggestionValue = askDeviceLLM(archiveTagsPrompt, false, textResultType)
+
+    @archiveNameSuggestion = trimWhitespace(deviceArchiveNameSuggestionValue)
+    @archiveSummarySuggestion = trimWhitespace(deviceArchiveSummarySuggestionValue)
+    @archiveTagsSuggestion = trimWhitespace(deviceArchiveTagsSuggestionValue)
+}
+
+if metadataProvider == "Private Cloud Compute" {
+    const cloudArchiveNameSuggestionValue = askCloudLLM(archiveNamePrompt, false, textResultType)
+    const cloudArchiveSummarySuggestionValue = askCloudLLM(archiveSummaryPrompt, false, textResultType)
+    const cloudArchiveTagsSuggestionValue = askCloudLLM(archiveTagsPrompt, false, textResultType)
+
+    @archiveNameSuggestion = trimWhitespace(cloudArchiveNameSuggestionValue)
+    @archiveSummarySuggestion = trimWhitespace(cloudArchiveSummarySuggestionValue)
+    @archiveTagsSuggestion = trimWhitespace(cloudArchiveTagsSuggestionValue)
+}
+
+if metadataProvider == "ChatGPT" {
+    const chatGPTArchiveNameSuggestionValue = askChatGPT(archiveNamePrompt, false, textResultType)
+    const chatGPTArchiveSummarySuggestionValue = askChatGPT(archiveSummaryPrompt, false, textResultType)
+    const chatGPTArchiveTagsSuggestionValue = askChatGPT(archiveTagsPrompt, false, textResultType)
+
+    @archiveNameSuggestion = trimWhitespace(chatGPTArchiveNameSuggestionValue)
+    @archiveSummarySuggestion = trimWhitespace(chatGPTArchiveSummarySuggestionValue)
+    @archiveTagsSuggestion = trimWhitespace(chatGPTArchiveTagsSuggestionValue)
+}
+
+const cleanedArchiveName = replaceText(invalidFilenamePattern, hyphenText, archiveNameSuggestion, true, true)
+
+if cleanedArchiveName != "" {
+    @archiveBaseName = cleanedArchiveName
+}
+
+if archiveSummarySuggestion != "" {
+    @archiveSummary = archiveSummarySuggestion
+}
+
+if archiveTagsSuggestion != "" {
+    @archiveTags = archiveTagsSuggestion
+}
+
+const manifestText = "
+Archive: {archiveBaseName}.zip
+Source page: {currentPageTitle}
+Source URL: {resolvedPageURL}
+Created at: {runStamp}
+Processing mode: {imageProcessingMode}
+Processing summary: {processingModeSummary}
+Optimised files: {optimisedImageCount}
+Original files kept: {preservedOriginalCount}
+Summary: {archiveSummary}
+Tags: {archiveTags}
+
+Files:
+{fileManifestText}
+"
+
+const manifestPath = "{workingFolderPath}/manifest.txt"
+saveFile(manifestPath, manifestText, true)
+
+const manifestFile = getFile(manifestPath)
+@archiveInputs = downloadedFiles
+@archiveInputs += manifestFile
+
+const rawArchive = makeArchive(archiveInputs)
+const archiveFileName = "{archiveBaseName}.zip"
+const archive = setName(rawArchive, archiveFileName, true)
+const successMessage = "Prepared {archiveFileName} with {downloadedCount} images using {imageProcessingMode} mode."
+
+saveFilePrompt(archive, true)
+show(successMessage)
