@@ -18,7 +18,9 @@ The shortcut SHALL avoid repeated `runJavaScriptOnWebpage(...)` usage within a s
 
 #### Scenario: Safari record carries reusable authenticated bytes
 - **WHEN** the live Safari webpage JavaScript action can fetch a same-origin image with the active Safari session
-- **THEN** the resulting image record includes reusable image data for downstream archive preparation
+- **THEN** the resulting Safari record may include reusable image data for downstream archive preparation only when the embedded payload is `image/jpeg`, `image/png`, or `image/webp`
+- **THEN** each embedded reusable image payload is capped at `1,048,576` bytes and the webpage JavaScript action includes embedded payloads for at most `10` Safari records per run
+- **THEN** the webpage JavaScript action falls back to the image URL alone when the image type, size, or embedded-payload count exceeds those limits
 - **THEN** the shortcut can avoid a separate webpage JavaScript fetch for that image later in the run
 
 ## MODIFIED Requirements

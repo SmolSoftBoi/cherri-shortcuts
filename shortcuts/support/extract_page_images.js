@@ -5,9 +5,23 @@ function cleanText(value) {
         .trim();
 }
 
+const reusableImageDataMaxBytes = 1048576;
+const reusableImageDataMaxCount = 10;
+const reusableImageMimeTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
+function sanitizeFileName(value) {
+    return Array.from(String(value || ''), (character) => {
+        const code = character.charCodeAt(0);
+        if (code <= 0x1f || /[<>:"/\\|?*]/.test(character)) {
+            return '-';
+        }
+
+        return character;
+    }).join('');
+}
+
 function cleanFilenamePart(value) {
-    const cleaned = cleanText(value)
-        .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '-')
+    const cleaned = sanitizeFileName(cleanText(value))
         .replace(/\.+$/g, '')
         .replace(/\s+/g, '-')
         .replace(/-+/g, '-')
@@ -92,7 +106,7 @@ function buildFilename(url, index, inlineData) {
     const rawName = safeDecode(parsed ? parsed.pathname.split('/').pop() || '' : '');
     const inlineExt = extensionFromDataURL(inlineData);
     const extMatch = rawName.match(/\.([A-Za-z0-9]{2,5})$/);
-    const ext = extMatch ? extMatch[1].toLowerCase() : inlineExt || 'jpg';
+    const ext = extMatch ? extMatch[1].toLowerCase() : inlineExt || 'img';
     const isBlobURL = parsed ? parsed.protocol === 'blob:' : false;
     const nameWithoutExt = isBlobURL ? '' : rawName.replace(/\.[A-Za-z0-9]{2,5}$/, '');
     const safeStem = cleanFilenamePart(nameWithoutExt || `image-${index + 1}`);
@@ -121,6 +135,15 @@ async function fetchInlineData(url) {
         }
 
         const blob = await response.blob();
+        const blobType = cleanText(blob.type).toLowerCase();
+
+        if (!reusableImageMimeTypes.has(blobType)) {
+            return '';
+        }
+
+        if (blob.size > reusableImageDataMaxBytes) {
+            return '';
+        }
 
         return await new Promise((resolve) => {
             const reader = new FileReader();
@@ -141,6 +164,7 @@ function finish(result) {
     const seen = new Set();
     const records = [];
     let recordIndex = 0;
+    let embeddedDataCount = 0;
 
     for (const image of Array.from(document.images)) {
         try {
@@ -163,12 +187,21 @@ function finish(result) {
                 continue;
             }
 
-            const inlineData = await fetchInlineData(resolvedURL);
+            let inlineData = '';
+
+            if (embeddedDataCount < reusableImageDataMaxCount) {
+                inlineData = await fetchInlineData(resolvedURL);
+            }
+
             if (resolvedSource.protocol === 'blob:' && !inlineData) {
                 continue;
             }
 
             seen.add(resolvedURL);
+
+            if (inlineData) {
+                embeddedDataCount += 1;
+            }
 
             const fileName = buildFilename(resolvedURL, recordIndex, inlineData);
             const altText = cleanText(image.alt);

@@ -21,7 +21,7 @@
 - [x] 3.5 Re-compile `shortcuts/web-image-archive.cherri` after the named archive-input follow-up and confirm the ZIP-input change builds cleanly.
 - [x] 3.6 Re-compile `shortcuts/web-image-archive.cherri` after the Safari-context authenticated-download follow-up and confirm the live-download branch builds cleanly.
 
-## Verification
+## Verification Commands
 
 - `node --check shortcuts/support/extract_page_images.js`
 - `cherri shortcuts/web-image-archive.cherri --skip-sign --output /tmp/web-image-archive.shortcut`

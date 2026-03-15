@@ -12,6 +12,7 @@
 #include 'actions/documents'
 #include 'actions/images'
 #include 'actions/intelligence'
+#include 'actions/device'
 #include 'actions/calendar'
 #include 'actions/crypto'
 
@@ -27,6 +28,9 @@ const whitespacePattern = "\\s+"
 const hyphenText = "-"
 const tabSeparator = "\t"
 const newlineSeparator = "\n"
+const directFallbackSourceKind = "direct"
+const genericFallbackSourceKind = "generic"
+const unknownImageExtension = "img"
 const processingModePrompt = "Choose how the archive should prepare supported images."
 const metadataProviderPrompt = "Choose an optional metadata provider."
 const textResultType = "Text"
@@ -47,10 +51,24 @@ const currentSafariURL = getText(currentSafariURLValue)
 @liveSafariTargetURL = ""
 @shouldOpenResolvedPageInSafari = false
 @canAttemptLiveSafariDiscovery = false
+@workflowInputIsSafariWebpage = false
 
 if ShortcutInput {
     @hasWorkflowInput = true
+    const workflowInputTypeValue = typeOf(ShortcutInput)
+    const workflowInputTypeText = getText(workflowInputTypeValue)
+    const workflowInputTypeLowercaseValue = lowercase(workflowInputTypeText)
+    const workflowInputTypeLowercase = getText(workflowInputTypeLowercaseValue)
+    const workflowInputTypeLowercaseText = "{workflowInputTypeLowercase}"
     @workflowInputText = getText(ShortcutInput)
+
+    if workflowInputTypeLowercaseText contains "webpage" {
+        @workflowInputIsSafariWebpage = true
+    }
+
+    if workflowInputTypeLowercaseText contains "web page" {
+        @workflowInputIsSafariWebpage = true
+    }
 }
 
 if workflowInputText != "" {
@@ -189,14 +207,10 @@ if !resolvedPageURL {
 }
 
 if workflowResolvedPageURL != "" {
-    @liveSafariTargetURL = workflowResolvedPageURL
-    @canAttemptLiveSafariDiscovery = true
+    if currentSafariTargetIsValid && workflowInputIsSafariWebpage {
+        @liveSafariTargetURL = workflowResolvedPageURL
+        @canAttemptLiveSafariDiscovery = true
 
-    if !currentSafariTargetIsValid {
-        @shouldOpenResolvedPageInSafari = true
-    }
-
-    if currentSafariTargetIsValid {
         if workflowCanonicalURL != currentSafariCanonicalURL {
             @shouldOpenResolvedPageInSafari = true
         }
@@ -204,17 +218,62 @@ if workflowResolvedPageURL != "" {
 }
 
 if liveSafariTargetURL == "" && currentSafariTargetIsValid {
-    @liveSafariTargetURL = currentSafariExpandedURL
-    @canAttemptLiveSafariDiscovery = true
+    if !hasWorkflowInput || workflowInputIsSafariWebpage {
+        @liveSafariTargetURL = currentSafariExpandedURL
+        @canAttemptLiveSafariDiscovery = true
+    }
 }
 
 const currentPage = getWebpageContents(resolvedPageURL)
 const currentPageTitleValue = getWebPageDetail(currentPage, pageNameDetail)
 const currentPageTitleText = getText(currentPageTitleValue)
+const resolvedPageSchemeValue = getURLDetail(resolvedPageURL, "Scheme")
+const resolvedPageSchemeText = getText(resolvedPageSchemeValue)
+const resolvedPageSchemeLowercaseValue = lowercase(resolvedPageSchemeText)
+const resolvedPageScheme = getText(resolvedPageSchemeLowercaseValue)
+const resolvedPageHostValue = getURLDetail(resolvedPageURL, "Host")
+const resolvedPageHost = getText(resolvedPageHostValue)
+const resolvedPagePortValue = getURLDetail(resolvedPageURL, "Port")
+const resolvedPagePort = getText(resolvedPagePortValue)
+const resolvedPagePathValue = getURLDetail(resolvedPageURL, "Path")
+const resolvedPagePath = getText(resolvedPagePathValue)
+const resolvedPagePathText = "{resolvedPagePath}"
 @currentPageTitle = resolvedPageURL
+@resolvedPageOrigin = "{resolvedPageScheme}://{resolvedPageHost}"
+@resolvedPageBaseDirectory = "{resolvedPageOrigin}/"
+@resolvedPageParentDirectory = "{resolvedPageOrigin}/"
 
 if currentPageTitleText != "" {
     @currentPageTitle = currentPageTitleText
+}
+
+if resolvedPagePort != "" {
+    @resolvedPageOrigin = "{resolvedPageOrigin}:{resolvedPagePort}"
+    @resolvedPageBaseDirectory = "{resolvedPageOrigin}/"
+    @resolvedPageParentDirectory = "{resolvedPageOrigin}/"
+}
+
+if resolvedPagePathText endsWith "/" {
+    @resolvedPageBaseDirectory = "{resolvedPageOrigin}{resolvedPagePathText}"
+    const resolvedPageParentPathValue = replaceText("/[^/]+/$", "/", resolvedPagePathText, true, true)
+    const resolvedPageParentPath = getText(resolvedPageParentPathValue)
+
+    if resolvedPageParentPath != "" {
+        @resolvedPageParentDirectory = "{resolvedPageOrigin}{resolvedPageParentPath}"
+    }
+} else {
+    const resolvedPageDirectoryPathValue = replaceText("/[^/]*$", "/", resolvedPagePathText, true, true)
+    const resolvedPageDirectoryPath = getText(resolvedPageDirectoryPathValue)
+    const resolvedPageParentDirectoryPathValue = replaceText("/[^/]+/$", "/", resolvedPageDirectoryPath, true, true)
+    const resolvedPageParentDirectoryPath = getText(resolvedPageParentDirectoryPathValue)
+
+    if resolvedPageDirectoryPath != "" {
+        @resolvedPageBaseDirectory = "{resolvedPageOrigin}{resolvedPageDirectoryPath}"
+    }
+
+    if resolvedPageParentDirectoryPath != "" {
+        @resolvedPageParentDirectory = "{resolvedPageOrigin}{resolvedPageParentDirectoryPath}"
+    }
 }
 
 const currentDateValue = currentDate()
@@ -228,9 +287,6 @@ const pageSlugTrimmed = trimWhitespace(pageSlugCollapsed)
 if pageSlugTrimmed != "" {
     @pageSlug = pageSlugTrimmed
 }
-
-const workingFolderPath = "Web Image Archive/{pageSlug}-{runStamp}"
-createFolder(workingFolderPath)
 
 const embeddedExtractor = embedFile("shortcuts/support/extract_page_images.js")
 const extractionScript = base64Decode(embeddedExtractor)
@@ -260,77 +316,215 @@ if canAttemptLiveSafariDiscovery {
 if !hasDiscoveredImages {
     const fallbackPageDownload = downloadURL(resolvedPageURL)
     const fallbackPageText = getText(fallbackPageDownload)
-    const fallbackCandidateURLs = getURLs(fallbackPageText)
 
+    @fallbackCandidateSources = []
     @fallbackImageRecords = []
     @fallbackImageIndex = 0
     @hasFallbackImages = false
     @seenImageURLLines = newlineSeparator
 
-    for fallbackCandidateURLValue in fallbackCandidateURLs {
-        const fallbackCandidateURL = getText(fallbackCandidateURLValue)
-        const fallbackCandidatePathValue = getURLDetail(fallbackCandidateURL, "Path")
-        const fallbackCandidatePathText = getText(fallbackCandidatePathValue)
-        const fallbackCandidatePathLowercaseValue = lowercase(fallbackCandidatePathText)
-        const fallbackCandidatePath = "{fallbackCandidatePathLowercaseValue}"
-        @isImageCandidate = false
+    const directSourceMatches = matchText("(?:src|data-src|data-original|data-lazy-src)\\s*=\\s*[\"']([^\"'\\s>]+)[\"']", fallbackPageText, false)
 
-        if fallbackCandidatePath endsWith ".avif" {
-            @isImageCandidate = true
+    for directSourceMatchValue in directSourceMatches {
+        const directSourceValue = getMatchGroup(directSourceMatchValue, 1)
+        const directSourceRawText = getText(directSourceValue)
+        const directSourceText = trimWhitespace(directSourceRawText)
+
+        if directSourceText != "" {
+            @fallbackCandidateSources += "{directFallbackSourceKind}{tabSeparator}{directSourceText}"
+        }
+    }
+
+    const srcsetMatches = matchText("(?:srcset|data-srcset)\\s*=\\s*[\"']([^\"']+)[\"']", fallbackPageText, false)
+
+    for srcsetMatchValue in srcsetMatches {
+        const srcsetValue = getMatchGroup(srcsetMatchValue, 1)
+        const srcsetRawText = getText(srcsetValue)
+        const srcsetText = trimWhitespace(srcsetRawText)
+
+        if srcsetText != "" {
+            const srcsetEntries = splitText(srcsetText, ",")
+
+            for srcsetEntryValue in srcsetEntries {
+                const srcsetEntryRawText = getText(srcsetEntryValue)
+                const srcsetEntryText = trimWhitespace(srcsetEntryRawText)
+
+                if srcsetEntryText != "" {
+                    const srcsetParts = splitText(srcsetEntryText, " ")
+                    const srcsetURLValue = getListItem(srcsetParts, 1)
+                    const srcsetURLRawText = getText(srcsetURLValue)
+                    const srcsetURLText = trimWhitespace(srcsetURLRawText)
+
+                    if srcsetURLText != "" {
+                        @fallbackCandidateSources += "{directFallbackSourceKind}{tabSeparator}{srcsetURLText}"
+                    }
+                }
+            }
+        }
+    }
+
+    const metaImageMatches = matchText("<meta[^>]+(?:property|name)\\s*=\\s*[\"'](?:og:image|twitter:image(?::src)?)\\s*[\"'][^>]+content\\s*=\\s*[\"']([^\"']+)[\"']", fallbackPageText, false)
+
+    for metaImageMatchValue in metaImageMatches {
+        const metaImageValue = getMatchGroup(metaImageMatchValue, 1)
+        const metaImageRawText = getText(metaImageValue)
+        const metaImageText = trimWhitespace(metaImageRawText)
+
+        if metaImageText != "" {
+            @fallbackCandidateSources += "{directFallbackSourceKind}{tabSeparator}{metaImageText}"
+        }
+    }
+
+    const metaImageReverseMatches = matchText("<meta[^>]+content\\s*=\\s*[\"']([^\"']+)[\"'][^>]+(?:property|name)\\s*=\\s*[\"'](?:og:image|twitter:image(?::src)?)\\s*[\"']", fallbackPageText, false)
+
+    for metaImageReverseMatchValue in metaImageReverseMatches {
+        const metaImageReverseValue = getMatchGroup(metaImageReverseMatchValue, 1)
+        const metaImageReverseRawText = getText(metaImageReverseValue)
+        const metaImageReverseText = trimWhitespace(metaImageReverseRawText)
+
+        if metaImageReverseText != "" {
+            @fallbackCandidateSources += "{directFallbackSourceKind}{tabSeparator}{metaImageReverseText}"
+        }
+    }
+
+    if !fallbackCandidateSources {
+        const fallbackCandidateURLs = getURLs(fallbackPageText)
+
+        for fallbackCandidateURLValue in fallbackCandidateURLs {
+            const fallbackCandidateURLText = getText(fallbackCandidateURLValue)
+
+            if fallbackCandidateURLText != "" {
+                @fallbackCandidateSources += "{genericFallbackSourceKind}{tabSeparator}{fallbackCandidateURLText}"
+            }
+        }
+    }
+
+    for fallbackCandidateSourceValue in fallbackCandidateSources {
+        const fallbackCandidateSourceFields = splitText(fallbackCandidateSourceValue, tabSeparator)
+        const fallbackCandidateSourceKindValue = getListItem(fallbackCandidateSourceFields, 1)
+        const fallbackCandidateSourceKind = getText(fallbackCandidateSourceKindValue)
+        const fallbackCandidateSourceTextValue = getListItem(fallbackCandidateSourceFields, 2)
+        const fallbackCandidateSourceRawText = getText(fallbackCandidateSourceTextValue)
+        const fallbackCandidateSource = trimWhitespace(fallbackCandidateSourceRawText)
+        const fallbackCandidateSourceText = "{fallbackCandidateSource}"
+        const fallbackCandidateWithoutHTTPPrefixValue = replaceText("^http://", "", fallbackCandidateSourceText, true, true)
+        const fallbackCandidateWithoutHTTPPrefix = getText(fallbackCandidateWithoutHTTPPrefixValue)
+        const fallbackCandidateWithoutHTTPSPrefixValue = replaceText("^https://", "", fallbackCandidateSourceText, true, true)
+        const fallbackCandidateWithoutHTTPSPrefix = getText(fallbackCandidateWithoutHTTPSPrefixValue)
+        const fallbackCandidateWithoutProtocolRelativePrefixValue = replaceText("^//", "", fallbackCandidateSourceText, true, true)
+        const fallbackCandidateWithoutProtocolRelativePrefix = getText(fallbackCandidateWithoutProtocolRelativePrefixValue)
+        const fallbackCandidateWithoutRootPrefixValue = replaceText("^/", "", fallbackCandidateSourceText, true, true)
+        const fallbackCandidateWithoutRootPrefix = getText(fallbackCandidateWithoutRootPrefixValue)
+        @fallbackCandidateURL = ""
+
+        if fallbackCandidateWithoutHTTPPrefix != fallbackCandidateSourceText {
+            @fallbackCandidateURL = fallbackCandidateSourceText
         }
 
-        if fallbackCandidatePath endsWith ".bmp" {
-            @isImageCandidate = true
+        if fallbackCandidateURL == "" {
+            if fallbackCandidateWithoutHTTPSPrefix != fallbackCandidateSourceText {
+                @fallbackCandidateURL = fallbackCandidateSourceText
+            }
         }
 
-        if fallbackCandidatePath endsWith ".gif" {
-            @isImageCandidate = true
+        if fallbackCandidateURL == "" {
+            if fallbackCandidateWithoutProtocolRelativePrefix != fallbackCandidateSourceText {
+                @fallbackCandidateURL = "{resolvedPageScheme}:{fallbackCandidateSourceText}"
+            }
         }
 
-        if fallbackCandidatePath endsWith ".heic" {
-            @isImageCandidate = true
+        if fallbackCandidateURL == "" {
+            if fallbackCandidateWithoutRootPrefix != fallbackCandidateSourceText {
+                @fallbackCandidateURL = "{resolvedPageOrigin}{fallbackCandidateSourceText}"
+            }
         }
 
-        if fallbackCandidatePath endsWith ".heif" {
-            @isImageCandidate = true
+        if fallbackCandidateURL == "" {
+            const fallbackCandidateWithoutDotSlashValue = replaceText("^\\./", "", fallbackCandidateSourceText, true, true)
+            const fallbackCandidateWithoutDotSlash = getText(fallbackCandidateWithoutDotSlashValue)
+            const fallbackCandidateWithoutParentValue = replaceText("^\\.\\./", "", fallbackCandidateSourceText, true, true)
+            const fallbackCandidateWithoutParent = getText(fallbackCandidateWithoutParentValue)
+
+            if fallbackCandidateWithoutParent != fallbackCandidateSourceText {
+                @fallbackCandidateURL = "{resolvedPageParentDirectory}{fallbackCandidateWithoutParent}"
+            }
+
+            if fallbackCandidateURL == "" {
+                if fallbackCandidateSourceText !contains ":" {
+                    @fallbackCandidateURL = "{resolvedPageBaseDirectory}{fallbackCandidateWithoutDotSlash}"
+                }
+            }
         }
 
-        if fallbackCandidatePath endsWith ".jpeg" {
-            @isImageCandidate = true
-        }
+        if fallbackCandidateURL != "" {
+            const fallbackCandidatePathValue = getURLDetail(fallbackCandidateURL, "Path")
+            const fallbackCandidatePathText = getText(fallbackCandidatePathValue)
+            const fallbackCandidatePathLowercaseValue = lowercase(fallbackCandidatePathText)
+            const fallbackCandidatePath = "{fallbackCandidatePathLowercaseValue}"
+            @isImageCandidate = false
 
-        if fallbackCandidatePath endsWith ".jpg" {
-            @isImageCandidate = true
-        }
+            if fallbackCandidateSourceKind == directFallbackSourceKind {
+                @isImageCandidate = true
+            }
 
-        if fallbackCandidatePath endsWith ".png" {
-            @isImageCandidate = true
-        }
+            if fallbackCandidatePath endsWith ".avif" {
+                @isImageCandidate = true
+            }
 
-        if fallbackCandidatePath endsWith ".svg" {
-            @isImageCandidate = true
-        }
+            if fallbackCandidatePath endsWith ".bmp" {
+                @isImageCandidate = true
+            }
 
-        if fallbackCandidatePath endsWith ".tif" {
-            @isImageCandidate = true
-        }
+            if fallbackCandidatePath endsWith ".gif" {
+                @isImageCandidate = true
+            }
 
-        if fallbackCandidatePath endsWith ".tiff" {
-            @isImageCandidate = true
-        }
+            if fallbackCandidatePath endsWith ".heic" {
+                @isImageCandidate = true
+            }
 
-        if fallbackCandidatePath endsWith ".webp" {
-            @isImageCandidate = true
-        }
+            if fallbackCandidatePath endsWith ".heif" {
+                @isImageCandidate = true
+            }
 
-        if isImageCandidate {
-            const seenImageURLText = "{seenImageURLLines}"
+            if fallbackCandidatePath endsWith ".jpeg" {
+                @isImageCandidate = true
+            }
 
-            if seenImageURLText !contains fallbackCandidateURL {
-                @fallbackImageIndex += 1
-                @hasFallbackImages = true
-                @seenImageURLLines = "{seenImageURLLines}{fallbackCandidateURL}{newlineSeparator}"
-                @fallbackImageRecords += "{tabSeparator}{fallbackCandidateURL}{tabSeparator}{tabSeparator}"
+            if fallbackCandidatePath endsWith ".jpg" {
+                @isImageCandidate = true
+            }
+
+            if fallbackCandidatePath endsWith ".png" {
+                @isImageCandidate = true
+            }
+
+            if fallbackCandidatePath endsWith ".svg" {
+                @isImageCandidate = true
+            }
+
+            if fallbackCandidatePath endsWith ".tif" {
+                @isImageCandidate = true
+            }
+
+            if fallbackCandidatePath endsWith ".tiff" {
+                @isImageCandidate = true
+            }
+
+            if fallbackCandidatePath endsWith ".webp" {
+                @isImageCandidate = true
+            }
+
+            if isImageCandidate {
+                const seenImageURLText = "{seenImageURLLines}"
+                const seenImageURLToken = "{newlineSeparator}{fallbackCandidateURL}{newlineSeparator}"
+
+                if seenImageURLText !contains seenImageURLToken {
+                    @fallbackImageIndex += 1
+                    @hasFallbackImages = true
+                    @seenImageURLLines = "{seenImageURLLines}{fallbackCandidateURL}{newlineSeparator}"
+                    @fallbackImageRecords += "{tabSeparator}{fallbackCandidateURL}{tabSeparator}{tabSeparator}"
+                }
             }
         }
     }
@@ -427,6 +621,8 @@ for imageRecordValue in imageRecords {
     const lowercaseSafeFileNameValue = lowercase(safeFileName)
     const lowercaseSafeFileName = getText(lowercaseSafeFileNameValue)
     const lowercaseSafeFileNameText = "{lowercaseSafeFileName}"
+    const safeFileExtensionValue = replaceText("^.*\\.([^.]+)$", "$1", lowercaseSafeFileName, true, true)
+    const safeFileExtensionText = getText(safeFileExtensionValue)
     const safeFileStemValue = replaceText("\\.[^.]+$", "", safeFileName, true, true)
 
     @safeFileStem = safeFileName
@@ -435,6 +631,14 @@ for imageRecordValue in imageRecords {
         @safeFileStem = safeFileStemValue
     }
 
+    @safeFileExtension = ""
+
+    if safeFileExtensionText != lowercaseSafeFileNameText {
+        @safeFileExtension = safeFileExtensionText
+    }
+
+    @resolvedOriginalFileName = suggestedFileName
+    @hasResolvedOriginalExtension = false
     @processedFileName = suggestedFileName
     @downloadedFileContent = ""
     @usedEmbeddedSafariDownload = false
@@ -457,6 +661,37 @@ for imageRecordValue in imageRecords {
         @downloadedFileContent = downloadURL(imageURL)
     }
 
+    if safeFileExtension == unknownImageExtension || safeFileExtension == "" {
+        const downloadedOriginalImages = getImages(downloadedFileContent)
+
+        if downloadedOriginalImages {
+            const firstDownloadedOriginalImage = getListItem(downloadedOriginalImages, 1)
+            const downloadedOriginalImageExtensionValue = getImageDetail(firstDownloadedOriginalImage, "File Extension")
+            const downloadedOriginalImageExtensionRawText = getText(downloadedOriginalImageExtensionValue)
+            const downloadedOriginalImageExtensionTrimmed = trimWhitespace(downloadedOriginalImageExtensionRawText)
+            const downloadedOriginalImageExtensionLowercaseValue = lowercase(downloadedOriginalImageExtensionTrimmed)
+            const downloadedOriginalImageExtension = getText(downloadedOriginalImageExtensionLowercaseValue)
+
+            if downloadedOriginalImageExtension != "" {
+                @resolvedOriginalFileName = "{downloadIndex}-{safeFileStem}.{downloadedOriginalImageExtension}"
+                @hasResolvedOriginalExtension = true
+            }
+        }
+
+        if !hasResolvedOriginalExtension {
+            const downloadedOriginalFileExtensionValue = getFileDetail(downloadedFileContent, "File Extension")
+            const downloadedOriginalFileExtensionRawText = getText(downloadedOriginalFileExtensionValue)
+            const downloadedOriginalFileExtensionTrimmed = trimWhitespace(downloadedOriginalFileExtensionRawText)
+            const downloadedOriginalFileExtensionLowercaseValue = lowercase(downloadedOriginalFileExtensionTrimmed)
+            const downloadedOriginalFileExtension = getText(downloadedOriginalFileExtensionLowercaseValue)
+
+            if downloadedOriginalFileExtension != "" {
+                @resolvedOriginalFileName = "{downloadIndex}-{safeFileStem}.{downloadedOriginalFileExtension}"
+            }
+        }
+    }
+
+    @processedFileName = resolvedOriginalFileName
     @processedFileContent = downloadedFileContent
 
     if imageProcessingMode != originalFilesMode {
@@ -502,9 +737,6 @@ for imageRecordValue in imageRecords {
     } else {
         @optimisedImageCount += 1
     }
-
-    const storedFilePath = "{workingFolderPath}/{processedFileName}"
-    saveFile(storedFilePath, processedFileContent, true)
 
     const archivedFile = setName(processedFileContent, processedFileName, true)
     @downloadedFiles += archivedFile
@@ -581,13 +813,63 @@ Images:
 {fileManifestText}
 "
 
-const metadataProviders = list(
-    "Skip metadata",
-    "Apple Intelligence on Device",
-    "Private Cloud Compute",
-    "ChatGPT"
-)
-const metadataProvider = chooseFromList(metadataProviders, metadataProviderPrompt)
+const deviceModelValue = getDeviceDetail("Device Model")
+const deviceModelText = getText(deviceModelValue)
+const deviceModelLowercaseValue = lowercase(deviceModelText)
+const deviceModelLowercase = getText(deviceModelLowercaseValue)
+const systemVersionValue = getDeviceDetail("System Version")
+const systemVersionText = getText(systemVersionValue)
+const deviceModelLowercaseText = "{deviceModelLowercase}"
+const systemVersion = "{systemVersionText}"
+const systemVersionWithout15PrefixValue = replaceText("^15\\.", "", systemVersion, true, true)
+const systemVersionWithout15Prefix = getText(systemVersionWithout15PrefixValue)
+const systemVersionWithout16PrefixValue = replaceText("^16\\.", "", systemVersion, true, true)
+const systemVersionWithout16Prefix = getText(systemVersionWithout16PrefixValue)
+const systemVersionWithout18PrefixValue = replaceText("^18\\.", "", systemVersion, true, true)
+const systemVersionWithout18Prefix = getText(systemVersionWithout18PrefixValue)
+const systemVersionWithout19PrefixValue = replaceText("^19\\.", "", systemVersion, true, true)
+const systemVersionWithout19Prefix = getText(systemVersionWithout19PrefixValue)
+@likelySupportsModelMetadata = false
+
+if deviceModelLowercaseText !contains "watch" {
+    if deviceModelLowercaseText contains "mac" {
+        if systemVersionWithout15Prefix != systemVersion {
+            @likelySupportsModelMetadata = true
+        }
+
+        if systemVersionWithout16Prefix != systemVersion {
+            @likelySupportsModelMetadata = true
+        }
+    } else {
+        if systemVersionWithout18Prefix != systemVersion {
+            @likelySupportsModelMetadata = true
+        }
+
+        if systemVersionWithout19Prefix != systemVersion {
+            @likelySupportsModelMetadata = true
+        }
+    }
+}
+
+@metadataProviders = []
+@metadataProviders += "Skip metadata"
+
+if likelySupportsModelMetadata {
+    @metadataProviders += "Apple Intelligence on Device"
+    @metadataProviders += "Private Cloud Compute"
+    @metadataProviders += "ChatGPT"
+}
+
+@metadataProvider = "Skip metadata"
+
+if likelySupportsModelMetadata {
+    const chosenMetadataProviderValue = chooseFromList(metadataProviders, metadataProviderPrompt)
+    const chosenMetadataProviderText = getText(chosenMetadataProviderValue)
+
+    if chosenMetadataProviderText != "" {
+        @metadataProvider = chosenMetadataProviderText
+    }
+}
 
 if metadataProvider == "Apple Intelligence on Device" {
     const deviceArchiveNameSuggestionValue = askDeviceLLM(archiveNamePrompt, false, textResultType)
@@ -649,8 +931,6 @@ Files:
 {fileManifestText}
 "
 
-const manifestPath = "{workingFolderPath}/manifest.txt"
-saveFile(manifestPath, manifestText, true)
 const manifestFile = setName(manifestText, "manifest.txt", true)
 @archiveInputs += manifestFile
 
