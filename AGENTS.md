@@ -14,8 +14,10 @@ This guidance applies to the entire repository.
 - Keep diffs small and reviewable.
 - Avoid speculative Cherri syntax or actions; confirm behaviour in official documentation first.
 - When answering user questions about Cherri, cite the official documentation page or pages used.
+- Only cite documentation or sources actually reviewed in the current workflow; never fabricate citations, URLs, or quoted behaviour.
 - Use the repository's existing tooling and scripts if present.
 - Use tools, repository files, and documentation lookups whenever they materially improve correctness, completeness, or grounding.
+- Do not stop early merely to save tool calls if additional inspection, lookup, or verification would materially improve correctness or completeness.
 - Before taking an action, complete any prerequisite inspection, lookup, or validation steps first; do not skip them just because the intended end state seems obvious.
 - If required context is missing, do not guess; prefer the relevant lookup or inspection step first. If uncertainty remains, label it explicitly.
 - Do not add production dependencies without approval.
@@ -32,15 +34,17 @@ This guidance applies to the entire repository.
   - `cherri --docs=<category>`
   - `cherri --action=<action>`
 - For web-related questions, start with `cherri --docs=web`.
+- For `runJavaScriptOnWebpage(...)`, use the official Apple Shortcuts pages on webpage JavaScript input and usage as companion sources, because Safari webpage input, Share Sheet scope, repeated action input, and `completion(...)` behaviour are Apple-side contract details rather than Cherri syntax details.
 - Use Definitions and Variables as companion docs when a web question crosses into launch surfaces, workflow input, or `ShortcutInput`.
 - For image-related questions, use the narrowest matching docs surface first:
   - `cherri --docs=images` for still-image processing
   - `cherri --docs=photos` for Photos-library access
   - `cherri --docs=media` for broader screenshot, audio, or video work
-- Base Cherri-specific claims on the documentation pages reviewed or direct tool outputs.
+- Base Cherri-specific claims only on the documentation pages reviewed, direct tool outputs, or inspected repository code.
 - If documentation is unclear or conflicting, note the uncertainty and cite the pages reviewed.
 - If a documentation lookup returns empty, partial, or unclear results, try one or two reasonable fallback lookups before concluding the information is unavailable.
 - Parallelise independent read-only documentation or repository lookups when it reduces latency, but do not parallelise steps with prerequisite dependencies.
+- After parallel lookups, synthesise the results before taking further dependent actions or presenting conclusions.
 
 ## Cherri-Specific Coding Guidance
 ### Compilation and Debugging
@@ -62,6 +66,8 @@ This guidance applies to the entire repository.
 - Use `#include 'actions/photos'` for selecting, searching, or saving through the Photos library.
 - Use `#include 'actions/media'` for broader screenshot, audio, video, or media-transform actions that extend beyond still-image processing.
 - Prefer official Web Actions names such as `runJavaScriptOnWebpage(...)`, `downloadURL(...)`, and `getURLs(...)` in guidance and explanations.
+- Treat `runJavaScriptOnWebpage(...)` as a Safari webpage-input action, not a generic URL-string action. Converting Safari webpage input into text or URL values too early can break later webpage JavaScript execution.
+- If a shortcut uses repeated `runJavaScriptOnWebpage(...)` actions, preserve Safari webpage input for each action instead of assuming ambient Safari state or a derived text value is enough.
 - If repository code uses helper names such as `runJS(...)`, describe them as local wrappers over documented web actions rather than official Cherri primitives.
 - Include function support before writing functions:
   - `#include 'actions/scripting'`
@@ -118,6 +124,9 @@ This guidance applies to the entire repository.
 - Definitions: `https://www.cherrilang.org/language/definitions/`
 - Includes: `https://www.cherrilang.org/language/includes/`
 - Web actions: `https://www.cherrilang.org/language/standard/web.html`
+- Apple Shortcuts: Intro to the Run JavaScript on Webpage action on Mac: `https://support.apple.com/en-asia/guide/shortcuts-mac/apd218e2187d/mac`
+- Apple Shortcuts: Use the Run JavaScript on Webpage action on Mac: `https://support.apple.com/en-afri/guide/shortcuts-mac/apdb71a01d93/mac`
+- Apple Shortcuts: Advanced privacy and security settings on Mac: `https://support.apple.com/en-euro/guide/shortcuts-mac/apdfeb05586f/mac`
 - Images actions: `https://www.cherrilang.org/language/standard/images.html`
 - Photos actions: `https://www.cherrilang.org/language/standard/photos.html`
 - Media actions: `https://www.cherrilang.org/language/standard/media.html`

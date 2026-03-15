@@ -29,6 +29,7 @@ This guidance applies to `openspec/` and all descendant paths.
 - Run shell commands only via the terminal tool.
 - Use direct edit or patch tools when available rather than making equivalent changes through shell commands.
 - Do not skip prerequisite discovery or validation steps just because the intended end state seems obvious.
+- For multiple independent read-only lookups, parallelise them when it materially reduces latency; do not parallelise steps with prerequisite dependencies.
 
 # Cherri Docs-First Research Workflow
 - Prefer official Cherri documentation on `https://www.cherrilang.org/`.
@@ -37,6 +38,7 @@ This guidance applies to `openspec/` and all descendant paths.
   - `cherri --docs=<category>`
   - `cherri --action=<action>`
 - For web-related questions, start with `cherri --docs=web`.
+- For `runJavaScriptOnWebpage(...)`, use the official Apple Shortcuts pages on webpage JavaScript input and usage as companion sources because Safari webpage input, Share Sheet scope, repeated action input, and `completion(...)` behaviour are Apple-side contract details.
 - Use Definitions and Variables as companion docs when a web question crosses into launch surfaces, workflow input, or `ShortcutInput`.
 - For image-related questions, use the narrowest matching docs surface first:
   - `cherri --docs=images` for still-image processing
@@ -67,6 +69,8 @@ This guidance applies to `openspec/` and all descendant paths.
 - Use `#include 'actions/photos'` for selecting, searching, or saving through the Photos library.
 - Use `#include 'actions/media'` for broader screenshot, audio, video, or media-transform actions that extend beyond still-image processing.
 - Prefer official Web Actions names such as `runJavaScriptOnWebpage(...)`, `downloadURL(...)`, and `getURLs(...)` in guidance. If repository code uses helpers such as `runJS(...)`, describe them as local wrappers rather than official Cherri primitives.
+- Treat `runJavaScriptOnWebpage(...)` as a Safari webpage-input action rather than a generic URL-string action. Converting Safari webpage input into text or URL values too early can break later webpage JavaScript execution.
+- If a shortcut uses repeated `runJavaScriptOnWebpage(...)` actions, preserve Safari webpage input for each action instead of relying on ambient Safari state or derived text.
 - Include function support before writing functions:
   - `#include 'actions/scripting'`
 - Be aware Cherri function scaffolding injects supporting actions at the start of the shortcut; avoid relying on incidental order.
@@ -120,6 +124,7 @@ This guidance applies to `openspec/` and all descendant paths.
 - Verify changes as you go and use the smallest relevant checks.
 - Prefer low-risk, reversible progress when intent is clear.
 - Do not stop early just to save tool calls when additional lookup or verification would materially improve correctness.
+- After independent lookups, synthesise results before making further dependent changes or claims.
 
 # Output and Style
 - Use Markdown where semantically appropriate.
@@ -127,6 +132,8 @@ This guidance applies to `openspec/` and all descendant paths.
 - Keep responses concise and information-dense by default; avoid repeating the user's request.
 - When reporting completed work, clearly state the files changed, verification run, and any blockers or follow-up items.
 - Return exactly the requested deliverables in the order the user requested them.
+- If the user requests a specific format, output only that format.
+- For longer or multi-phase work, provide brief progress updates only when starting a new major phase or when the plan materially changes.
 
 # Stop Conditions
 - Finish when the requested changes are complete, relevant verification has been run or blockers are clearly reported, and formatting remains intact.
@@ -139,6 +146,9 @@ Official Cherri docs:
 - Definitions: https://www.cherrilang.org/language/definitions/
 - Includes: https://www.cherrilang.org/language/includes/
 - Web actions: https://www.cherrilang.org/language/standard/web.html
+- Apple Shortcuts: Intro to the Run JavaScript on Webpage action on Mac: https://support.apple.com/en-asia/guide/shortcuts-mac/apd218e2187d/mac
+- Apple Shortcuts: Use the Run JavaScript on Webpage action on Mac: https://support.apple.com/en-afri/guide/shortcuts-mac/apdb71a01d93/mac
+- Apple Shortcuts: Advanced privacy and security settings on Mac: https://support.apple.com/en-euro/guide/shortcuts-mac/apdfeb05586f/mac
 - Images actions: https://www.cherrilang.org/language/standard/images.html
 - Photos actions: https://www.cherrilang.org/language/standard/photos.html
 - Media actions: https://www.cherrilang.org/language/standard/media.html

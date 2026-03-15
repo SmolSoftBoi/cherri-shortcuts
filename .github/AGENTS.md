@@ -12,6 +12,7 @@ Provide repository-wide guidance for working effectively in this Cherri Shortcut
 # Core Instructions
 - For non-trivial work, start with a short plan and then implement.
 - Keep diffs small and reviewable.
+- For repository or code-change tasks, inspect the relevant files and existing patterns before editing.
 - Avoid speculative Cherri syntax or actions; confirm behaviour in official documentation first.
 - When answering user questions about Cherri, cite the official documentation page or pages actually used.
 - Use the repository's existing tooling and scripts if present.
@@ -31,8 +32,13 @@ Provide repository-wide guidance for working effectively in this Cherri Shortcut
   - `cherri --docs=<category>`
   - `cherri --action=<action>`
 - For web-related questions, start with `cherri --docs=web`; use Definitions and Variables as companion docs when launch surfaces, workflow input, or `ShortcutInput` materially affect the answer.
-- For image-related questions, use the narrowest matching docs surface first: `cherri --docs=images` for still-image processing, `cherri --docs=photos` for Photos-library access, and `cherri --docs=media` for broader screenshot, audio, or video work.
+- For `runJavaScriptOnWebpage(...)`, also use the official Apple Shortcuts pages on webpage JavaScript input and usage as companion sources because Safari webpage input, Share Sheet scope, repeated action input, and `completion(...)` behaviour are Apple-side contract details.
+- For image-related questions, use the narrowest matching docs surface first:
+  - `cherri --docs=images` for still-image processing
+  - `cherri --docs=photos` for Photos-library access
+  - `cherri --docs=media` for broader screenshot, audio, or video work
 - Base Cherri-specific claims only on the documentation pages reviewed or direct tool outputs.
+- Only cite documentation pages actually reviewed in the current workflow; never fabricate citations, URLs, or quoted behaviour.
 - If documentation is unclear or conflicting, note the uncertainty and cite the pages reviewed.
 - If a documentation lookup returns empty, partial, or unclear results, try one or two reasonable fallback lookups before concluding that the information is unavailable.
 
@@ -56,6 +62,8 @@ Provide repository-wide guidance for working effectively in this Cherri Shortcut
 - Use `#include 'actions/photos'` for selecting, searching, or saving through the Photos library.
 - Use `#include 'actions/media'` for broader screenshot, audio, video, or media-transform actions that extend beyond still-image processing.
 - Prefer official Web Actions names such as `runJavaScriptOnWebpage(...)`, `downloadURL(...)`, and `getURLs(...)` in explanations. Treat repository helpers such as `runJS(...)` as local wrappers rather than official Cherri actions.
+- Treat `runJavaScriptOnWebpage(...)` as a Safari webpage-input action rather than a generic URL-string action. Converting Safari webpage input into text or URL values too early can break later webpage JavaScript execution.
+- If a shortcut uses repeated `runJavaScriptOnWebpage(...)` actions, preserve Safari webpage input for each action instead of relying on ambient Safari state or derived text.
 - Include function support before writing functions:
   - `#include 'actions/scripting'`
 - Be aware that Cherri function scaffolding injects supporting actions at the start of the shortcut; avoid relying on incidental order.
@@ -109,6 +117,9 @@ Provide repository-wide guidance for working effectively in this Cherri Shortcut
 - Definitions: `https://www.cherrilang.org/language/definitions/`
 - Includes: `https://www.cherrilang.org/language/includes/`
 - Web actions: `https://www.cherrilang.org/language/standard/web.html`
+- Apple Shortcuts: Intro to the Run JavaScript on Webpage action on Mac: `https://support.apple.com/en-asia/guide/shortcuts-mac/apd218e2187d/mac`
+- Apple Shortcuts: Use the Run JavaScript on Webpage action on Mac: `https://support.apple.com/en-afri/guide/shortcuts-mac/apdb71a01d93/mac`
+- Apple Shortcuts: Advanced privacy and security settings on Mac: `https://support.apple.com/en-euro/guide/shortcuts-mac/apdfeb05586f/mac`
 - Images actions: `https://www.cherrilang.org/language/standard/images.html`
 - Photos actions: `https://www.cherrilang.org/language/standard/photos.html`
 - Media actions: `https://www.cherrilang.org/language/standard/media.html`
@@ -123,9 +134,10 @@ Provide repository-wide guidance for working effectively in this Cherri Shortcut
 - Keep user-facing responses concise, information-dense, and avoid repeating the user's request.
 - For longer or multi-phase work, provide brief progress updates only when starting a major phase or when the plan materially changes; do not narrate routine tool calls.
 - If the user specifies a response format, return exactly that format.
+- Return exactly the requested sections in the requested order; if a length limit applies, apply it only to the section it governs.
 - For code, use higher verbosity where it improves readability, including clear names, comments, and straightforward control flow.
 - Use Markdown only where semantically appropriate.
-- Format file, directory, function, and class names in backticks.
+- Format file, directory, function, and class names in `backticks`.
 
 # Stop Conditions
 - Finish only when all requested deliverables are completed or explicitly marked as blocked with the missing dependency stated.

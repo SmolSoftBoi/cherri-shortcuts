@@ -1,4 +1,4 @@
 interface:
   display_name: "Cherri Docs"
-  short_description: "Official Cherri docs lookup for language, web, images, photos, and media"
-  default_prompt: "Use $cherri-docs to answer this Cherri product, language, or standard action question with citations from official documentation, calling out Safari, HTTP, and URL-action boundaries for web questions and using Definitions or Variables as companion docs when `ShortcutInput` or launch surfaces matter."
+  short_description: "Official Cherri docs lookup for language, web, Safari webpage actions, images, photos, and media"
+  default_prompt: "Use $cherri-docs to answer this Cherri product, language, or standard action question with citations from official documentation, calling out Safari, HTTP, and URL-action boundaries for web questions, using Definitions or Variables as companion docs when `ShortcutInput` or launch surfaces matter, and treating `runJavaScriptOnWebpage(...)` as a Safari webpage-input action that also needs companion Apple Shortcuts contract docs."

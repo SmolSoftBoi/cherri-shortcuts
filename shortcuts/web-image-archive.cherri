@@ -2,6 +2,7 @@
 #define color blue
 #define glyph archive
 #define from sharesheet, onscreen, spotlight
+#define inputs webpage, text
 
 #include 'stdlib'
 
@@ -19,6 +20,7 @@ comment('Archive images from a Safari page or supported workflow input, then opt
 const shortcutTitle = "Web Image Archive"
 const pageNameDetail = "Name"
 const sourcePageMessage = "Provide a webpage URL through the Share Sheet, on-screen content, or Spotlight, or run this shortcut from an open Safari page."
+const supportedPageMessage = "Provide a supported webpage URL that starts with http:// or https://, or run this shortcut from an open Safari page."
 const noImagesMessage = "No downloadable images were found for the selected webpage."
 const invalidFilenamePattern = "[^A-Za-z0-9._ -]+"
 const whitespacePattern = "\\s+"
@@ -34,28 +36,176 @@ const smallerHEIFMode = "HEIF (smaller on Apple devices)"
 
 const currentSafariURLValue = getCurrentURL()
 const currentSafariURL = getText(currentSafariURLValue)
+@currentSafariExpandedURL = ""
+@currentSafariCanonicalURL = ""
+@currentSafariTargetIsValid = false
+@hasWorkflowInput = false
 @workflowInputText = ""
+@workflowCandidateURL = ""
+@workflowResolvedPageURL = ""
+@workflowCanonicalURL = ""
+@liveSafariTargetURL = ""
+@shouldOpenResolvedPageInSafari = false
+@canAttemptLiveSafariDiscovery = false
 
 if ShortcutInput {
+    @hasWorkflowInput = true
     @workflowInputText = getText(ShortcutInput)
 }
 
-const workflowInputURLs = getURLs(workflowInputText)
+if workflowInputText != "" {
+    const workflowInputURLs = getURLs(workflowInputText)
+
+    if workflowInputURLs {
+        const workflowInputURLValue = getListItem(workflowInputURLs, 1)
+        const workflowInputURLText = getText(workflowInputURLValue)
+        const expandedWorkflowURLValue = expandURL(workflowInputURLText)
+        const expandedWorkflowURLText = getText(expandedWorkflowURLValue)
+
+        @workflowCandidateURL = workflowInputURLText
+
+        if expandedWorkflowURLText != "" {
+            @workflowCandidateURL = expandedWorkflowURLText
+        }
+    }
+}
+
+if workflowCandidateURL != "" {
+    const workflowSchemeValue = getURLDetail(workflowCandidateURL, "Scheme")
+    const workflowSchemeText = getText(workflowSchemeValue)
+    const workflowSchemeLowercaseValue = lowercase(workflowSchemeText)
+    const workflowScheme = getText(workflowSchemeLowercaseValue)
+    const workflowHostValue = getURLDetail(workflowCandidateURL, "Host")
+    const workflowHostText = getText(workflowHostValue)
+    const workflowHostLowercaseValue = lowercase(workflowHostText)
+    const workflowHost = getText(workflowHostLowercaseValue)
+    const workflowPortValue = getURLDetail(workflowCandidateURL, "Port")
+    const workflowPort = getText(workflowPortValue)
+    const workflowPathValue = getURLDetail(workflowCandidateURL, "Path")
+    const workflowPath = getText(workflowPathValue)
+    const workflowQueryValue = getURLDetail(workflowCandidateURL, "Query")
+    const workflowQuery = getText(workflowQueryValue)
+    @workflowTargetIsValid = false
+
+    if workflowHost != "" {
+        if workflowScheme == "http" {
+            @workflowTargetIsValid = true
+        }
+
+        if workflowScheme == "https" {
+            @workflowTargetIsValid = true
+        }
+    }
+
+    if workflowTargetIsValid {
+        @workflowResolvedPageURL = workflowCandidateURL
+        @workflowCanonicalURL = "{workflowScheme}://{workflowHost}"
+
+        if workflowPort != "" {
+            @workflowCanonicalURL = "{workflowCanonicalURL}:{workflowPort}"
+        }
+
+        @workflowCanonicalURL = "{workflowCanonicalURL}{workflowPath}"
+
+        if workflowQuery != "" {
+            @workflowCanonicalURL = "{workflowCanonicalURL}?{workflowQuery}"
+        }
+    }
+}
+
+if currentSafariURL != "" {
+    const expandedSafariURLValue = expandURL(currentSafariURL)
+    const expandedSafariURLText = getText(expandedSafariURLValue)
+
+    @currentSafariExpandedURL = currentSafariURL
+
+    if expandedSafariURLText != "" {
+        @currentSafariExpandedURL = expandedSafariURLText
+    }
+
+    const currentSafariSchemeValue = getURLDetail(currentSafariExpandedURL, "Scheme")
+    const currentSafariSchemeText = getText(currentSafariSchemeValue)
+    const currentSafariSchemeLowercaseValue = lowercase(currentSafariSchemeText)
+    const currentSafariScheme = getText(currentSafariSchemeLowercaseValue)
+    const currentSafariHostValue = getURLDetail(currentSafariExpandedURL, "Host")
+    const currentSafariHostText = getText(currentSafariHostValue)
+    const currentSafariHostLowercaseValue = lowercase(currentSafariHostText)
+    const currentSafariHost = getText(currentSafariHostLowercaseValue)
+    const currentSafariPortValue = getURLDetail(currentSafariExpandedURL, "Port")
+    const currentSafariPort = getText(currentSafariPortValue)
+    const currentSafariPathValue = getURLDetail(currentSafariExpandedURL, "Path")
+    const currentSafariPath = getText(currentSafariPathValue)
+    const currentSafariQueryValue = getURLDetail(currentSafariExpandedURL, "Query")
+    const currentSafariQuery = getText(currentSafariQueryValue)
+
+    if currentSafariHost != "" {
+        if currentSafariScheme == "http" {
+            @currentSafariTargetIsValid = true
+        }
+
+        if currentSafariScheme == "https" {
+            @currentSafariTargetIsValid = true
+        }
+    }
+
+    if currentSafariTargetIsValid {
+        @currentSafariCanonicalURL = "{currentSafariScheme}://{currentSafariHost}"
+
+        if currentSafariPort != "" {
+            @currentSafariCanonicalURL = "{currentSafariCanonicalURL}:{currentSafariPort}"
+        }
+
+        @currentSafariCanonicalURL = "{currentSafariCanonicalURL}{currentSafariPath}"
+
+        if currentSafariQuery != "" {
+            @currentSafariCanonicalURL = "{currentSafariCanonicalURL}?{currentSafariQuery}"
+        }
+    }
+}
+
 @resolvedPageURL = ""
 
-if workflowInputURLs {
-    const workflowInputURLValue = getListItem(workflowInputURLs, 1)
-    const workflowInputURLText = getText(workflowInputURLValue)
-    @resolvedPageURL = workflowInputURLText
+if workflowResolvedPageURL != "" {
+    @resolvedPageURL = workflowResolvedPageURL
 }
 
-if !resolvedPageURL {
-    @resolvedPageURL = currentSafariURL
+if resolvedPageURL == "" && currentSafariTargetIsValid {
+    @resolvedPageURL = currentSafariExpandedURL
 }
 
-if !resolvedPageURL {
-    alert(sourcePageMessage, shortcutTitle)
+if hasWorkflowInput && workflowResolvedPageURL == "" && !currentSafariTargetIsValid {
+    alert(supportedPageMessage, shortcutTitle)
     stop()
+}
+
+if !resolvedPageURL {
+    if currentSafariURL != "" {
+        alert(supportedPageMessage, shortcutTitle)
+    } else {
+        alert(sourcePageMessage, shortcutTitle)
+    }
+
+    stop()
+}
+
+if workflowResolvedPageURL != "" {
+    @liveSafariTargetURL = workflowResolvedPageURL
+    @canAttemptLiveSafariDiscovery = true
+
+    if !currentSafariTargetIsValid {
+        @shouldOpenResolvedPageInSafari = true
+    }
+
+    if currentSafariTargetIsValid {
+        if workflowCanonicalURL != currentSafariCanonicalURL {
+            @shouldOpenResolvedPageInSafari = true
+        }
+    }
+}
+
+if liveSafariTargetURL == "" && currentSafariTargetIsValid {
+    @liveSafariTargetURL = currentSafariExpandedURL
+    @canAttemptLiveSafariDiscovery = true
 }
 
 const currentPage = getWebpageContents(resolvedPageURL)
@@ -84,16 +234,26 @@ createFolder(workingFolderPath)
 
 const embeddedExtractor = embedFile("shortcuts/support/extract_page_images.js")
 const extractionScript = base64Decode(embeddedExtractor)
-@imageURLs = []
+@imageRecords = []
 @hasDiscoveredImages = false
+@usedLiveSafariDiscovery = false
 
-if currentSafariURL != "" && currentSafariURL == resolvedPageURL {
-    const liveExtractedImageData = runJS(extractionScript)
-    const liveImageURLs = getURLs(liveExtractedImageData)
+if shouldOpenResolvedPageInSafari {
+    showWebpage(liveSafariTargetURL, false)
+}
 
-    if liveImageURLs {
-        @imageURLs = liveImageURLs
-        @hasDiscoveredImages = true
+if canAttemptLiveSafariDiscovery {
+    const liveExtractedImageData = runJavaScriptOnWebpage(extractionScript)
+    const liveImageRecordLines = splitText(liveExtractedImageData, newlineSeparator)
+
+    for liveImageRecordValue in liveImageRecordLines {
+        const liveImageRecordText = getText(liveImageRecordValue)
+
+        if liveImageRecordText != "" {
+            @imageRecords += liveImageRecordText
+            @hasDiscoveredImages = true
+            @usedLiveSafariDiscovery = true
+        }
     }
 }
 
@@ -102,7 +262,7 @@ if !hasDiscoveredImages {
     const fallbackPageText = getText(fallbackPageDownload)
     const fallbackCandidateURLs = getURLs(fallbackPageText)
 
-    @fallbackImageURLs = []
+    @fallbackImageRecords = []
     @fallbackImageIndex = 0
     @hasFallbackImages = false
     @seenImageURLLines = newlineSeparator
@@ -111,7 +271,8 @@ if !hasDiscoveredImages {
         const fallbackCandidateURL = getText(fallbackCandidateURLValue)
         const fallbackCandidatePathValue = getURLDetail(fallbackCandidateURL, "Path")
         const fallbackCandidatePathText = getText(fallbackCandidatePathValue)
-        const fallbackCandidatePath = "{fallbackCandidatePathText}"
+        const fallbackCandidatePathLowercaseValue = lowercase(fallbackCandidatePathText)
+        const fallbackCandidatePath = "{fallbackCandidatePathLowercaseValue}"
         @isImageCandidate = false
 
         if fallbackCandidatePath endsWith ".avif" {
@@ -169,13 +330,13 @@ if !hasDiscoveredImages {
                 @fallbackImageIndex += 1
                 @hasFallbackImages = true
                 @seenImageURLLines = "{seenImageURLLines}{fallbackCandidateURL}{newlineSeparator}"
-                @fallbackImageURLs += fallbackCandidateURL
+                @fallbackImageRecords += "{tabSeparator}{fallbackCandidateURL}{tabSeparator}{tabSeparator}"
             }
         }
     }
 
     if hasFallbackImages {
-        @imageURLs = fallbackImageURLs
+        @imageRecords = fallbackImageRecords
         @hasDiscoveredImages = true
     }
 }
@@ -204,11 +365,39 @@ if imageProcessingMode == smallerHEIFMode {
 }
 
 @downloadedFiles = []
+@archiveInputs = []
 @fileManifestText = ""
 @downloadIndex = 0
 
-for imageURLValue in imageURLs {
-    const imageURL = getText(imageURLValue)
+for imageRecordValue in imageRecords {
+    const imageRecord = getText(imageRecordValue)
+    const imageRecordFields = splitText(imageRecord, tabSeparator)
+    const recordFileNameValue = getListItem(imageRecordFields, 1)
+    const recordFileNameText = getText(recordFileNameValue)
+    const recordImageURLValue = getListItem(imageRecordFields, 2)
+    const recordImageURLText = getText(recordImageURLValue)
+    const recordEmbeddedDataURLValue = getListItem(imageRecordFields, 4)
+    const recordEmbeddedDataURLText = getText(recordEmbeddedDataURLValue)
+    @recordFileName = ""
+    @imageURL = ""
+    @recordEmbeddedDataURL = ""
+
+    if recordFileNameText != "" {
+        @recordFileName = recordFileNameText
+    }
+
+    if recordImageURLText != "" {
+        @imageURL = recordImageURLText
+    }
+
+    if imageURL == "" {
+        @imageURL = imageRecord
+    }
+
+    if recordEmbeddedDataURLText != "" {
+        @recordEmbeddedDataURL = recordEmbeddedDataURLText
+    }
+
     const imageURLPathValue = getURLDetail(imageURL, "Path")
     const imageURLPath = getText(imageURLPathValue)
     const imagePathSegments = splitText(imageURLPath, "/")
@@ -216,7 +405,14 @@ for imageURLValue in imageURLs {
     const rawFileNameValue = getListItem(imagePathSegments, imagePathCount)
     const rawFileNameText = getText(rawFileNameValue)
     const rawFileName = urlDecode(rawFileNameText)
-    const safeFileNameUnsafe = replaceText(invalidFilenamePattern, hyphenText, rawFileName, true, true)
+
+    @rawFileNameCandidate = rawFileName
+
+    if recordFileName != "" {
+        @rawFileNameCandidate = recordFileName
+    }
+
+    const safeFileNameUnsafe = replaceText(invalidFilenamePattern, hyphenText, rawFileNameCandidate, true, true)
     const safeFileNameCollapsed = replaceText(whitespacePattern, hyphenText, safeFileNameUnsafe, true, true)
     const safeFileNameTrimmed = trimWhitespace(safeFileNameCollapsed)
 
@@ -228,7 +424,6 @@ for imageURLValue in imageURLs {
 
     @downloadIndex += 1
     const suggestedFileName = "{downloadIndex}-{safeFileName}"
-    const downloadedFile = downloadURL(imageURL)
     const lowercaseSafeFileNameValue = lowercase(safeFileName)
     const lowercaseSafeFileName = getText(lowercaseSafeFileNameValue)
     const lowercaseSafeFileNameText = "{lowercaseSafeFileName}"
@@ -241,10 +436,28 @@ for imageURLValue in imageURLs {
     }
 
     @processedFileName = suggestedFileName
-    @processedFileContent = downloadedFile
+    @downloadedFileContent = ""
+    @usedEmbeddedSafariDownload = false
     @processingNote = "original"
     @shouldPreserveOriginalFile = true
     @isConvertibleCandidate = true
+
+    if recordEmbeddedDataURL contains "base64," {
+        const embeddedSafariBase64Value = replaceText("^data:[^,]+,", "", recordEmbeddedDataURL, true, true)
+        const embeddedSafariBase64 = getText(embeddedSafariBase64Value)
+
+        if embeddedSafariBase64 != "" {
+            @downloadedFileContent = base64Decode(embeddedSafariBase64)
+            @usedEmbeddedSafariDownload = true
+            @processingNote = "downloaded from live safari record"
+        }
+    }
+
+    if !usedEmbeddedSafariDownload {
+        @downloadedFileContent = downloadURL(imageURL)
+    }
+
+    @processedFileContent = downloadedFileContent
 
     if imageProcessingMode != originalFilesMode {
         if lowercaseSafeFileNameText endsWith ".gif" {
@@ -256,7 +469,7 @@ for imageURLValue in imageURLs {
         }
 
         if isConvertibleCandidate {
-            const extractedDownloadedImages = getImages(downloadedFile)
+            const extractedDownloadedImages = getImages(downloadedFileContent)
 
             if extractedDownloadedImages {
                 const firstDownloadedImage = getListItem(extractedDownloadedImages, 1)
@@ -291,11 +504,11 @@ for imageURLValue in imageURLs {
     }
 
     const storedFilePath = "{workingFolderPath}/{processedFileName}"
-
     saveFile(storedFilePath, processedFileContent, true)
 
-    const storedFile = getFile(storedFilePath)
-    @downloadedFiles += storedFile
+    const archivedFile = setName(processedFileContent, processedFileName, true)
+    @downloadedFiles += archivedFile
+    @archiveInputs += archivedFile
 
     @manifestLine = "- {processedFileName} | {imageURL} | {processingNote}"
 
@@ -438,9 +651,7 @@ Files:
 
 const manifestPath = "{workingFolderPath}/manifest.txt"
 saveFile(manifestPath, manifestText, true)
-
-const manifestFile = getFile(manifestPath)
-@archiveInputs = downloadedFiles
+const manifestFile = setName(manifestText, "manifest.txt", true)
 @archiveInputs += manifestFile
 
 const rawArchive = makeArchive(archiveInputs)

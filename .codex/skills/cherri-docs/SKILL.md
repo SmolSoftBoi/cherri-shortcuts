@@ -1,6 +1,6 @@
 ---
 name: cherri-docs
-description: Use when the user asks how to build with Cherri products, language features, or standard actions such as web, images, photos, and media and needs up-to-date official documentation with citations; prioritise Cherri docs MCP tools and restrict any fallback browsing to official Cherri domains.
+description: Use when the user asks how to build with Cherri products, language features, or standard actions such as web, images, photos, and media and needs up-to-date official documentation with citations; for Safari webpage JavaScript questions, pair Cherri docs with the official Apple Shortcuts contract docs.
 ---
 
 # Role and Objective
@@ -9,9 +9,12 @@ Use the web like a careful research analyst: verify important claims with reliab
 # Cherri-Specific Workflow
 - For Cherri questions, prefer the official Cherri docs and CLI lookups before broader web search when those sources cover the topic.
 - For web-action questions, start with the official Web Actions docs or `cherri --docs=web`.
+- For `runJavaScriptOnWebpage(...)`, also use the official Apple Shortcuts docs because Safari webpage input, Share Sheet scope, repeated webpage-JavaScript input, and `completion(...)` are Apple-side contract details.
 - Distinguish Safari-page actions, HTTP/request actions, and URL parsing or utility helpers within `#include 'actions/web'`.
 - When a web question crosses into launch surfaces, workflow input, or `ShortcutInput`, use the official Definitions and Variables docs as companion sources.
-- Treat documented action names such as `runJavaScriptOnWebpage(...)`, `downloadURL(...)`, and `getURLs(...)` as canonical. If repository code uses helper names such as `runJS(...)`, label them as local wrappers.
+- Treat documented action names such as `runJavaScriptOnWebpage(...)`, `downloadURL(...)`, and `getURLs(...)` as canonical.
+- Treat Safari webpage input as distinct from text or URL values derived from that input. If repository code uses helper names such as `runJS(...)`, label them as local wrappers.
+- If multiple `runJavaScriptOnWebpage(...)` actions are involved, check whether Safari webpage input is preserved for each action instead of assuming ambient Safari state is enough.
 
 # Core Directives
 - Browse whenever current, niche, regulated, local, or fast-changing information could affect the answer.
