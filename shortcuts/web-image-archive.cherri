@@ -1,0 +1,943 @@
+#define name Web Image Archive
+#define color blue
+#define glyph archive
+#define from sharesheet, onscreen, spotlight
+#define inputs webpage, text
+
+#include 'stdlib'
+
+#include 'actions/scripting'
+#include 'actions/web'
+#include 'actions/text'
+#include 'actions/documents'
+#include 'actions/images'
+#include 'actions/intelligence'
+#include 'actions/device'
+#include 'actions/calendar'
+#include 'actions/crypto'
+
+comment('Archive images from a Safari page or supported workflow input, then optionally enrich the archive metadata with a compatible model.')
+
+const shortcutTitle = "Web Image Archive"
+const pageNameDetail = "Name"
+const sourcePageMessage = "Provide a webpage URL through the Share Sheet, on-screen content, or Spotlight, or run this shortcut from an open Safari page."
+const supportedPageMessage = "Provide a supported webpage URL that starts with http:// or https://, or run this shortcut from an open Safari page."
+const noImagesMessage = "No downloadable images were found for the selected webpage."
+const invalidFilenamePattern = "[^A-Za-z0-9._ -]+"
+const whitespacePattern = "\\s+"
+const hyphenText = "-"
+const tabSeparator = "\t"
+const newlineSeparator = "\n"
+const directFallbackSourceKind = "direct"
+const genericFallbackSourceKind = "generic"
+const unknownImageExtension = "img"
+const processingModePrompt = "Choose how the archive should prepare supported images."
+const metadataProviderPrompt = "Choose an optional metadata provider."
+const textResultType = "Text"
+const originalFilesMode = "Original files"
+const smallerJPEGMode = "JPEG (smaller)"
+const smallerHEIFMode = "HEIF (smaller on Apple devices)"
+
+const currentSafariURLValue = getCurrentURL()
+const currentSafariURL = getText(currentSafariURLValue)
+@currentSafariExpandedURL = ""
+@currentSafariCanonicalURL = ""
+@currentSafariTargetIsValid = false
+@hasWorkflowInput = false
+@workflowInputText = ""
+@workflowCandidateURL = ""
+@workflowResolvedPageURL = ""
+@workflowCanonicalURL = ""
+@liveSafariTargetURL = ""
+@shouldOpenResolvedPageInSafari = false
+@canAttemptLiveSafariDiscovery = false
+@workflowInputIsSafariWebpage = false
+
+if ShortcutInput {
+    @hasWorkflowInput = true
+    const workflowInputTypeValue = typeOf(ShortcutInput)
+    const workflowInputTypeText = getText(workflowInputTypeValue)
+    const workflowInputTypeLowercaseValue = lowercase(workflowInputTypeText)
+    const workflowInputTypeLowercase = getText(workflowInputTypeLowercaseValue)
+    const workflowInputTypeLowercaseText = "{workflowInputTypeLowercase}"
+    @workflowInputText = getText(ShortcutInput)
+
+    if workflowInputTypeLowercaseText contains "webpage" {
+        @workflowInputIsSafariWebpage = true
+    }
+
+    if workflowInputTypeLowercaseText contains "web page" {
+        @workflowInputIsSafariWebpage = true
+    }
+}
+
+if workflowInputText != "" {
+    const workflowInputURLs = getURLs(workflowInputText)
+
+    if workflowInputURLs {
+        const workflowInputURLValue = getListItem(workflowInputURLs, 1)
+        const workflowInputURLText = getText(workflowInputURLValue)
+        const expandedWorkflowURLValue = expandURL(workflowInputURLText)
+        const expandedWorkflowURLText = getText(expandedWorkflowURLValue)
+
+        @workflowCandidateURL = workflowInputURLText
+
+        if expandedWorkflowURLText != "" {
+            @workflowCandidateURL = expandedWorkflowURLText
+        }
+    }
+}
+
+if workflowCandidateURL != "" {
+    const workflowSchemeValue = getURLDetail(workflowCandidateURL, "Scheme")
+    const workflowSchemeText = getText(workflowSchemeValue)
+    const workflowSchemeLowercaseValue = lowercase(workflowSchemeText)
+    const workflowScheme = getText(workflowSchemeLowercaseValue)
+    const workflowHostValue = getURLDetail(workflowCandidateURL, "Host")
+    const workflowHostText = getText(workflowHostValue)
+    const workflowHostLowercaseValue = lowercase(workflowHostText)
+    const workflowHost = getText(workflowHostLowercaseValue)
+    const workflowPortValue = getURLDetail(workflowCandidateURL, "Port")
+    const workflowPort = getText(workflowPortValue)
+    const workflowPathValue = getURLDetail(workflowCandidateURL, "Path")
+    const workflowPath = getText(workflowPathValue)
+    const workflowQueryValue = getURLDetail(workflowCandidateURL, "Query")
+    const workflowQuery = getText(workflowQueryValue)
+    @workflowTargetIsValid = false
+
+    if workflowHost != "" {
+        if workflowScheme == "http" {
+            @workflowTargetIsValid = true
+        }
+
+        if workflowScheme == "https" {
+            @workflowTargetIsValid = true
+        }
+    }
+
+    if workflowTargetIsValid {
+        @workflowResolvedPageURL = workflowCandidateURL
+        @workflowCanonicalURL = "{workflowScheme}://{workflowHost}"
+
+        if workflowPort != "" {
+            @workflowCanonicalURL = "{workflowCanonicalURL}:{workflowPort}"
+        }
+
+        @workflowCanonicalURL = "{workflowCanonicalURL}{workflowPath}"
+
+        if workflowQuery != "" {
+            @workflowCanonicalURL = "{workflowCanonicalURL}?{workflowQuery}"
+        }
+    }
+}
+
+if currentSafariURL != "" {
+    const expandedSafariURLValue = expandURL(currentSafariURL)
+    const expandedSafariURLText = getText(expandedSafariURLValue)
+
+    @currentSafariExpandedURL = currentSafariURL
+
+    if expandedSafariURLText != "" {
+        @currentSafariExpandedURL = expandedSafariURLText
+    }
+
+    const currentSafariSchemeValue = getURLDetail(currentSafariExpandedURL, "Scheme")
+    const currentSafariSchemeText = getText(currentSafariSchemeValue)
+    const currentSafariSchemeLowercaseValue = lowercase(currentSafariSchemeText)
+    const currentSafariScheme = getText(currentSafariSchemeLowercaseValue)
+    const currentSafariHostValue = getURLDetail(currentSafariExpandedURL, "Host")
+    const currentSafariHostText = getText(currentSafariHostValue)
+    const currentSafariHostLowercaseValue = lowercase(currentSafariHostText)
+    const currentSafariHost = getText(currentSafariHostLowercaseValue)
+    const currentSafariPortValue = getURLDetail(currentSafariExpandedURL, "Port")
+    const currentSafariPort = getText(currentSafariPortValue)
+    const currentSafariPathValue = getURLDetail(currentSafariExpandedURL, "Path")
+    const currentSafariPath = getText(currentSafariPathValue)
+    const currentSafariQueryValue = getURLDetail(currentSafariExpandedURL, "Query")
+    const currentSafariQuery = getText(currentSafariQueryValue)
+
+    if currentSafariHost != "" {
+        if currentSafariScheme == "http" {
+            @currentSafariTargetIsValid = true
+        }
+
+        if currentSafariScheme == "https" {
+            @currentSafariTargetIsValid = true
+        }
+    }
+
+    if currentSafariTargetIsValid {
+        @currentSafariCanonicalURL = "{currentSafariScheme}://{currentSafariHost}"
+
+        if currentSafariPort != "" {
+            @currentSafariCanonicalURL = "{currentSafariCanonicalURL}:{currentSafariPort}"
+        }
+
+        @currentSafariCanonicalURL = "{currentSafariCanonicalURL}{currentSafariPath}"
+
+        if currentSafariQuery != "" {
+            @currentSafariCanonicalURL = "{currentSafariCanonicalURL}?{currentSafariQuery}"
+        }
+    }
+}
+
+@resolvedPageURL = ""
+
+if workflowResolvedPageURL != "" {
+    @resolvedPageURL = workflowResolvedPageURL
+}
+
+if resolvedPageURL == "" && currentSafariTargetIsValid {
+    @resolvedPageURL = currentSafariExpandedURL
+}
+
+if hasWorkflowInput && workflowResolvedPageURL == "" && !currentSafariTargetIsValid {
+    alert(supportedPageMessage, shortcutTitle)
+    stop()
+}
+
+if !resolvedPageURL {
+    if currentSafariURL != "" {
+        alert(supportedPageMessage, shortcutTitle)
+    } else {
+        alert(sourcePageMessage, shortcutTitle)
+    }
+
+    stop()
+}
+
+if workflowResolvedPageURL != "" {
+    if currentSafariTargetIsValid && workflowInputIsSafariWebpage {
+        @liveSafariTargetURL = workflowResolvedPageURL
+        @canAttemptLiveSafariDiscovery = true
+
+        if workflowCanonicalURL != currentSafariCanonicalURL {
+            @shouldOpenResolvedPageInSafari = true
+        }
+    }
+}
+
+if liveSafariTargetURL == "" && currentSafariTargetIsValid {
+    if !hasWorkflowInput || workflowInputIsSafariWebpage {
+        @liveSafariTargetURL = currentSafariExpandedURL
+        @canAttemptLiveSafariDiscovery = true
+    }
+}
+
+const currentPage = getWebpageContents(resolvedPageURL)
+const currentPageTitleValue = getWebPageDetail(currentPage, pageNameDetail)
+const currentPageTitleText = getText(currentPageTitleValue)
+const resolvedPageSchemeValue = getURLDetail(resolvedPageURL, "Scheme")
+const resolvedPageSchemeText = getText(resolvedPageSchemeValue)
+const resolvedPageSchemeLowercaseValue = lowercase(resolvedPageSchemeText)
+const resolvedPageScheme = getText(resolvedPageSchemeLowercaseValue)
+const resolvedPageHostValue = getURLDetail(resolvedPageURL, "Host")
+const resolvedPageHost = getText(resolvedPageHostValue)
+const resolvedPagePortValue = getURLDetail(resolvedPageURL, "Port")
+const resolvedPagePort = getText(resolvedPagePortValue)
+const resolvedPagePathValue = getURLDetail(resolvedPageURL, "Path")
+const resolvedPagePath = getText(resolvedPagePathValue)
+const resolvedPagePathText = "{resolvedPagePath}"
+@currentPageTitle = resolvedPageURL
+@resolvedPageOrigin = "{resolvedPageScheme}://{resolvedPageHost}"
+@resolvedPageBaseDirectory = "{resolvedPageOrigin}/"
+@resolvedPageParentDirectory = "{resolvedPageOrigin}/"
+
+if currentPageTitleText != "" {
+    @currentPageTitle = currentPageTitleText
+}
+
+if resolvedPagePort != "" {
+    @resolvedPageOrigin = "{resolvedPageOrigin}:{resolvedPagePort}"
+    @resolvedPageBaseDirectory = "{resolvedPageOrigin}/"
+    @resolvedPageParentDirectory = "{resolvedPageOrigin}/"
+}
+
+if resolvedPagePathText endsWith "/" {
+    @resolvedPageBaseDirectory = "{resolvedPageOrigin}{resolvedPagePathText}"
+    const resolvedPageParentPathValue = replaceText("/[^/]+/$", "/", resolvedPagePathText, true, true)
+    const resolvedPageParentPath = getText(resolvedPageParentPathValue)
+
+    if resolvedPageParentPath != "" {
+        @resolvedPageParentDirectory = "{resolvedPageOrigin}{resolvedPageParentPath}"
+    }
+} else {
+    const resolvedPageDirectoryPathValue = replaceText("/[^/]*$", "/", resolvedPagePathText, true, true)
+    const resolvedPageDirectoryPath = getText(resolvedPageDirectoryPathValue)
+    const resolvedPageParentDirectoryPathValue = replaceText("/[^/]+/$", "/", resolvedPageDirectoryPath, true, true)
+    const resolvedPageParentDirectoryPath = getText(resolvedPageParentDirectoryPathValue)
+
+    if resolvedPageDirectoryPath != "" {
+        @resolvedPageBaseDirectory = "{resolvedPageOrigin}{resolvedPageDirectoryPath}"
+    }
+
+    if resolvedPageParentDirectoryPath != "" {
+        @resolvedPageParentDirectory = "{resolvedPageOrigin}{resolvedPageParentDirectoryPath}"
+    }
+}
+
+const currentDateValue = currentDate()
+const runStamp = formatDate(currentDateValue, "Custom", "yyyyMMdd-HHmmss")
+
+const pageSlugUnsafe = replaceText(invalidFilenamePattern, hyphenText, currentPageTitle, true, true)
+const pageSlugCollapsed = replaceText(whitespacePattern, hyphenText, pageSlugUnsafe, true, true)
+const pageSlugTrimmed = trimWhitespace(pageSlugCollapsed)
+@pageSlug = "webpage-images"
+
+if pageSlugTrimmed != "" {
+    @pageSlug = pageSlugTrimmed
+}
+
+const embeddedExtractor = embedFile("shortcuts/support/extract_page_images.js")
+const extractionScript = base64Decode(embeddedExtractor)
+@imageRecords = []
+@hasDiscoveredImages = false
+@usedLiveSafariDiscovery = false
+
+if shouldOpenResolvedPageInSafari {
+    showWebpage(liveSafariTargetURL, false)
+}
+
+if canAttemptLiveSafariDiscovery {
+    const liveExtractedImageData = runJavaScriptOnWebpage(extractionScript)
+    const liveImageRecordLines = splitText(liveExtractedImageData, newlineSeparator)
+
+    for liveImageRecordValue in liveImageRecordLines {
+        const liveImageRecordText = getText(liveImageRecordValue)
+
+        if liveImageRecordText != "" {
+            @imageRecords += liveImageRecordText
+            @hasDiscoveredImages = true
+            @usedLiveSafariDiscovery = true
+        }
+    }
+}
+
+if !hasDiscoveredImages {
+    const fallbackPageDownload = downloadURL(resolvedPageURL)
+    const fallbackPageText = getText(fallbackPageDownload)
+
+    @fallbackCandidateSources = []
+    @fallbackImageRecords = []
+    @fallbackImageIndex = 0
+    @hasFallbackImages = false
+    @seenImageURLLines = newlineSeparator
+
+    const directSourceMatches = matchText("(?:src|data-src|data-original|data-lazy-src)\\s*=\\s*[\"']([^\"'\\s>]+)[\"']", fallbackPageText, false)
+
+    for directSourceMatchValue in directSourceMatches {
+        const directSourceValue = getMatchGroup(directSourceMatchValue, 1)
+        const directSourceRawText = getText(directSourceValue)
+        const directSourceText = trimWhitespace(directSourceRawText)
+
+        if directSourceText != "" {
+            @fallbackCandidateSources += "{directFallbackSourceKind}{tabSeparator}{directSourceText}"
+        }
+    }
+
+    const srcsetMatches = matchText("(?:srcset|data-srcset)\\s*=\\s*[\"']([^\"']+)[\"']", fallbackPageText, false)
+
+    for srcsetMatchValue in srcsetMatches {
+        const srcsetValue = getMatchGroup(srcsetMatchValue, 1)
+        const srcsetRawText = getText(srcsetValue)
+        const srcsetText = trimWhitespace(srcsetRawText)
+
+        if srcsetText != "" {
+            const srcsetEntries = splitText(srcsetText, ",")
+
+            for srcsetEntryValue in srcsetEntries {
+                const srcsetEntryRawText = getText(srcsetEntryValue)
+                const srcsetEntryText = trimWhitespace(srcsetEntryRawText)
+
+                if srcsetEntryText != "" {
+                    const srcsetParts = splitText(srcsetEntryText, " ")
+                    const srcsetURLValue = getListItem(srcsetParts, 1)
+                    const srcsetURLRawText = getText(srcsetURLValue)
+                    const srcsetURLText = trimWhitespace(srcsetURLRawText)
+
+                    if srcsetURLText != "" {
+                        @fallbackCandidateSources += "{directFallbackSourceKind}{tabSeparator}{srcsetURLText}"
+                    }
+                }
+            }
+        }
+    }
+
+    const metaImageMatches = matchText("<meta[^>]+(?:property|name)\\s*=\\s*[\"'](?:og:image|twitter:image(?::src)?)\\s*[\"'][^>]+content\\s*=\\s*[\"']([^\"']+)[\"']", fallbackPageText, false)
+
+    for metaImageMatchValue in metaImageMatches {
+        const metaImageValue = getMatchGroup(metaImageMatchValue, 1)
+        const metaImageRawText = getText(metaImageValue)
+        const metaImageText = trimWhitespace(metaImageRawText)
+
+        if metaImageText != "" {
+            @fallbackCandidateSources += "{directFallbackSourceKind}{tabSeparator}{metaImageText}"
+        }
+    }
+
+    const metaImageReverseMatches = matchText("<meta[^>]+content\\s*=\\s*[\"']([^\"']+)[\"'][^>]+(?:property|name)\\s*=\\s*[\"'](?:og:image|twitter:image(?::src)?)\\s*[\"']", fallbackPageText, false)
+
+    for metaImageReverseMatchValue in metaImageReverseMatches {
+        const metaImageReverseValue = getMatchGroup(metaImageReverseMatchValue, 1)
+        const metaImageReverseRawText = getText(metaImageReverseValue)
+        const metaImageReverseText = trimWhitespace(metaImageReverseRawText)
+
+        if metaImageReverseText != "" {
+            @fallbackCandidateSources += "{directFallbackSourceKind}{tabSeparator}{metaImageReverseText}"
+        }
+    }
+
+    if !fallbackCandidateSources {
+        const fallbackCandidateURLs = getURLs(fallbackPageText)
+
+        for fallbackCandidateURLValue in fallbackCandidateURLs {
+            const fallbackCandidateURLText = getText(fallbackCandidateURLValue)
+
+            if fallbackCandidateURLText != "" {
+                @fallbackCandidateSources += "{genericFallbackSourceKind}{tabSeparator}{fallbackCandidateURLText}"
+            }
+        }
+    }
+
+    for fallbackCandidateSourceValue in fallbackCandidateSources {
+        const fallbackCandidateSourceFields = splitText(fallbackCandidateSourceValue, tabSeparator)
+        const fallbackCandidateSourceKindValue = getListItem(fallbackCandidateSourceFields, 1)
+        const fallbackCandidateSourceKind = getText(fallbackCandidateSourceKindValue)
+        const fallbackCandidateSourceTextValue = getListItem(fallbackCandidateSourceFields, 2)
+        const fallbackCandidateSourceRawText = getText(fallbackCandidateSourceTextValue)
+        const fallbackCandidateSource = trimWhitespace(fallbackCandidateSourceRawText)
+        const fallbackCandidateSourceText = "{fallbackCandidateSource}"
+        const fallbackCandidateWithoutHTTPPrefixValue = replaceText("^http://", "", fallbackCandidateSourceText, true, true)
+        const fallbackCandidateWithoutHTTPPrefix = getText(fallbackCandidateWithoutHTTPPrefixValue)
+        const fallbackCandidateWithoutHTTPSPrefixValue = replaceText("^https://", "", fallbackCandidateSourceText, true, true)
+        const fallbackCandidateWithoutHTTPSPrefix = getText(fallbackCandidateWithoutHTTPSPrefixValue)
+        const fallbackCandidateWithoutProtocolRelativePrefixValue = replaceText("^//", "", fallbackCandidateSourceText, true, true)
+        const fallbackCandidateWithoutProtocolRelativePrefix = getText(fallbackCandidateWithoutProtocolRelativePrefixValue)
+        const fallbackCandidateWithoutRootPrefixValue = replaceText("^/", "", fallbackCandidateSourceText, true, true)
+        const fallbackCandidateWithoutRootPrefix = getText(fallbackCandidateWithoutRootPrefixValue)
+        @fallbackCandidateURL = ""
+
+        if fallbackCandidateWithoutHTTPPrefix != fallbackCandidateSourceText {
+            @fallbackCandidateURL = fallbackCandidateSourceText
+        }
+
+        if fallbackCandidateURL == "" {
+            if fallbackCandidateWithoutHTTPSPrefix != fallbackCandidateSourceText {
+                @fallbackCandidateURL = fallbackCandidateSourceText
+            }
+        }
+
+        if fallbackCandidateURL == "" {
+            if fallbackCandidateWithoutProtocolRelativePrefix != fallbackCandidateSourceText {
+                @fallbackCandidateURL = "{resolvedPageScheme}:{fallbackCandidateSourceText}"
+            }
+        }
+
+        if fallbackCandidateURL == "" {
+            if fallbackCandidateWithoutRootPrefix != fallbackCandidateSourceText {
+                @fallbackCandidateURL = "{resolvedPageOrigin}{fallbackCandidateSourceText}"
+            }
+        }
+
+        if fallbackCandidateURL == "" {
+            const fallbackCandidateWithoutDotSlashValue = replaceText("^\\./", "", fallbackCandidateSourceText, true, true)
+            const fallbackCandidateWithoutDotSlash = getText(fallbackCandidateWithoutDotSlashValue)
+            const fallbackCandidateWithoutParentValue = replaceText("^\\.\\./", "", fallbackCandidateSourceText, true, true)
+            const fallbackCandidateWithoutParent = getText(fallbackCandidateWithoutParentValue)
+
+            if fallbackCandidateWithoutParent != fallbackCandidateSourceText {
+                @fallbackCandidateURL = "{resolvedPageParentDirectory}{fallbackCandidateWithoutParent}"
+            }
+
+            if fallbackCandidateURL == "" {
+                if fallbackCandidateSourceText !contains ":" {
+                    @fallbackCandidateURL = "{resolvedPageBaseDirectory}{fallbackCandidateWithoutDotSlash}"
+                }
+            }
+        }
+
+        if fallbackCandidateURL != "" {
+            const fallbackCandidatePathValue = getURLDetail(fallbackCandidateURL, "Path")
+            const fallbackCandidatePathText = getText(fallbackCandidatePathValue)
+            const fallbackCandidatePathLowercaseValue = lowercase(fallbackCandidatePathText)
+            const fallbackCandidatePath = "{fallbackCandidatePathLowercaseValue}"
+            @isImageCandidate = false
+
+            if fallbackCandidateSourceKind == directFallbackSourceKind {
+                @isImageCandidate = true
+            }
+
+            if fallbackCandidatePath endsWith ".avif" {
+                @isImageCandidate = true
+            }
+
+            if fallbackCandidatePath endsWith ".bmp" {
+                @isImageCandidate = true
+            }
+
+            if fallbackCandidatePath endsWith ".gif" {
+                @isImageCandidate = true
+            }
+
+            if fallbackCandidatePath endsWith ".heic" {
+                @isImageCandidate = true
+            }
+
+            if fallbackCandidatePath endsWith ".heif" {
+                @isImageCandidate = true
+            }
+
+            if fallbackCandidatePath endsWith ".jpeg" {
+                @isImageCandidate = true
+            }
+
+            if fallbackCandidatePath endsWith ".jpg" {
+                @isImageCandidate = true
+            }
+
+            if fallbackCandidatePath endsWith ".png" {
+                @isImageCandidate = true
+            }
+
+            if fallbackCandidatePath endsWith ".svg" {
+                @isImageCandidate = true
+            }
+
+            if fallbackCandidatePath endsWith ".tif" {
+                @isImageCandidate = true
+            }
+
+            if fallbackCandidatePath endsWith ".tiff" {
+                @isImageCandidate = true
+            }
+
+            if fallbackCandidatePath endsWith ".webp" {
+                @isImageCandidate = true
+            }
+
+            if isImageCandidate {
+                const seenImageURLText = "{seenImageURLLines}"
+                const seenImageURLToken = "{newlineSeparator}{fallbackCandidateURL}{newlineSeparator}"
+
+                if seenImageURLText !contains seenImageURLToken {
+                    @fallbackImageIndex += 1
+                    @hasFallbackImages = true
+                    @seenImageURLLines = "{seenImageURLLines}{fallbackCandidateURL}{newlineSeparator}"
+                    @fallbackImageRecords += "{tabSeparator}{fallbackCandidateURL}{tabSeparator}{tabSeparator}"
+                }
+            }
+        }
+    }
+
+    if hasFallbackImages {
+        @imageRecords = fallbackImageRecords
+        @hasDiscoveredImages = true
+    }
+}
+
+if !hasDiscoveredImages {
+    alert(noImagesMessage, shortcutTitle)
+    stop()
+}
+
+const processingModes = list(
+    originalFilesMode,
+    smallerJPEGMode,
+    smallerHEIFMode
+)
+const imageProcessingMode = chooseFromList(processingModes, processingModePrompt)
+@processingModeSummary = "Archive the downloaded files without image conversion."
+@optimisedImageCount = 0
+@preservedOriginalCount = 0
+
+if imageProcessingMode == smallerJPEGMode {
+    @processingModeSummary = "Convert supported still images to JPEG with smaller file sizes and stripped metadata."
+}
+
+if imageProcessingMode == smallerHEIFMode {
+    @processingModeSummary = "Convert supported still images to HEIF with smaller file sizes and stripped metadata."
+}
+
+@downloadedFiles = []
+@archiveInputs = []
+@fileManifestText = ""
+@downloadIndex = 0
+
+for imageRecordValue in imageRecords {
+    const imageRecord = getText(imageRecordValue)
+    const imageRecordFields = splitText(imageRecord, tabSeparator)
+    const recordFileNameValue = getListItem(imageRecordFields, 1)
+    const recordFileNameText = getText(recordFileNameValue)
+    const recordImageURLValue = getListItem(imageRecordFields, 2)
+    const recordImageURLText = getText(recordImageURLValue)
+    const recordEmbeddedDataURLValue = getListItem(imageRecordFields, 4)
+    const recordEmbeddedDataURLText = getText(recordEmbeddedDataURLValue)
+    @recordFileName = ""
+    @imageURL = ""
+    @recordEmbeddedDataURL = ""
+
+    if recordFileNameText != "" {
+        @recordFileName = recordFileNameText
+    }
+
+    if recordImageURLText != "" {
+        @imageURL = recordImageURLText
+    }
+
+    if imageURL == "" {
+        @imageURL = imageRecord
+    }
+
+    if recordEmbeddedDataURLText != "" {
+        @recordEmbeddedDataURL = recordEmbeddedDataURLText
+    }
+
+    const imageURLPathValue = getURLDetail(imageURL, "Path")
+    const imageURLPath = getText(imageURLPathValue)
+    const imagePathSegments = splitText(imageURLPath, "/")
+    const imagePathCount = count(imagePathSegments)
+    const rawFileNameValue = getListItem(imagePathSegments, imagePathCount)
+    const rawFileNameText = getText(rawFileNameValue)
+    const rawFileName = urlDecode(rawFileNameText)
+
+    @rawFileNameCandidate = rawFileName
+
+    if recordFileName != "" {
+        @rawFileNameCandidate = recordFileName
+    }
+
+    const safeFileNameUnsafe = replaceText(invalidFilenamePattern, hyphenText, rawFileNameCandidate, true, true)
+    const safeFileNameCollapsed = replaceText(whitespacePattern, hyphenText, safeFileNameUnsafe, true, true)
+    const safeFileNameTrimmed = trimWhitespace(safeFileNameCollapsed)
+
+    @safeFileName = "image.jpg"
+
+    if safeFileNameTrimmed != "" {
+        @safeFileName = safeFileNameTrimmed
+    }
+
+    @downloadIndex += 1
+    const suggestedFileName = "{downloadIndex}-{safeFileName}"
+    const lowercaseSafeFileNameValue = lowercase(safeFileName)
+    const lowercaseSafeFileName = getText(lowercaseSafeFileNameValue)
+    const lowercaseSafeFileNameText = "{lowercaseSafeFileName}"
+    const safeFileExtensionValue = replaceText("^.*\\.([^.]+)$", "$1", lowercaseSafeFileName, true, true)
+    const safeFileExtensionText = getText(safeFileExtensionValue)
+    const safeFileStemValue = replaceText("\\.[^.]+$", "", safeFileName, true, true)
+
+    @safeFileStem = safeFileName
+
+    if safeFileStemValue != "" {
+        @safeFileStem = safeFileStemValue
+    }
+
+    @safeFileExtension = ""
+
+    if safeFileExtensionText != lowercaseSafeFileNameText {
+        @safeFileExtension = safeFileExtensionText
+    }
+
+    @resolvedOriginalFileName = suggestedFileName
+    @hasResolvedOriginalExtension = false
+    @processedFileName = suggestedFileName
+    @downloadedFileContent = ""
+    @usedEmbeddedSafariDownload = false
+    @processingNote = "original"
+    @shouldPreserveOriginalFile = true
+    @isConvertibleCandidate = true
+
+    if recordEmbeddedDataURL contains "base64," {
+        const embeddedSafariBase64Value = replaceText("^data:[^,]+,", "", recordEmbeddedDataURL, true, true)
+        const embeddedSafariBase64 = getText(embeddedSafariBase64Value)
+
+        if embeddedSafariBase64 != "" {
+            @downloadedFileContent = base64Decode(embeddedSafariBase64)
+            @usedEmbeddedSafariDownload = true
+            @processingNote = "downloaded from live safari record"
+        }
+    }
+
+    if !usedEmbeddedSafariDownload {
+        @downloadedFileContent = downloadURL(imageURL)
+    }
+
+    if safeFileExtension == unknownImageExtension || safeFileExtension == "" {
+        const downloadedOriginalImages = getImages(downloadedFileContent)
+
+        if downloadedOriginalImages {
+            const firstDownloadedOriginalImage = getListItem(downloadedOriginalImages, 1)
+            const downloadedOriginalImageExtensionValue = getImageDetail(firstDownloadedOriginalImage, "File Extension")
+            const downloadedOriginalImageExtensionRawText = getText(downloadedOriginalImageExtensionValue)
+            const downloadedOriginalImageExtensionTrimmed = trimWhitespace(downloadedOriginalImageExtensionRawText)
+            const downloadedOriginalImageExtensionLowercaseValue = lowercase(downloadedOriginalImageExtensionTrimmed)
+            const downloadedOriginalImageExtension = getText(downloadedOriginalImageExtensionLowercaseValue)
+
+            if downloadedOriginalImageExtension != "" {
+                @resolvedOriginalFileName = "{downloadIndex}-{safeFileStem}.{downloadedOriginalImageExtension}"
+                @hasResolvedOriginalExtension = true
+            }
+        }
+
+        if !hasResolvedOriginalExtension {
+            const downloadedOriginalFileExtensionValue = getFileDetail(downloadedFileContent, "File Extension")
+            const downloadedOriginalFileExtensionRawText = getText(downloadedOriginalFileExtensionValue)
+            const downloadedOriginalFileExtensionTrimmed = trimWhitespace(downloadedOriginalFileExtensionRawText)
+            const downloadedOriginalFileExtensionLowercaseValue = lowercase(downloadedOriginalFileExtensionTrimmed)
+            const downloadedOriginalFileExtension = getText(downloadedOriginalFileExtensionLowercaseValue)
+
+            if downloadedOriginalFileExtension != "" {
+                @resolvedOriginalFileName = "{downloadIndex}-{safeFileStem}.{downloadedOriginalFileExtension}"
+            }
+        }
+    }
+
+    @processedFileName = resolvedOriginalFileName
+    @processedFileContent = downloadedFileContent
+
+    if imageProcessingMode != originalFilesMode {
+        if lowercaseSafeFileNameText endsWith ".gif" {
+            @isConvertibleCandidate = false
+        }
+
+        if lowercaseSafeFileNameText endsWith ".svg" {
+            @isConvertibleCandidate = false
+        }
+
+        if isConvertibleCandidate {
+            const extractedDownloadedImages = getImages(downloadedFileContent)
+
+            if extractedDownloadedImages {
+                const firstDownloadedImage = getListItem(extractedDownloadedImages, 1)
+
+                if imageProcessingMode == smallerJPEGMode {
+                    const convertedJPEGImage = convertToJPEG(firstDownloadedImage, 65, false)
+                    @processedFileName = "{downloadIndex}-{safeFileStem}.jpg"
+                    @processedFileContent = convertedJPEGImage
+                    @processingNote = "converted to jpeg"
+                    @shouldPreserveOriginalFile = false
+                }
+
+                if imageProcessingMode == smallerHEIFMode {
+                    const convertedHEIFImage = convertImage(firstDownloadedImage, "HEIF", 0.65, false)
+                    @processedFileName = "{downloadIndex}-{safeFileStem}.heif"
+                    @processedFileContent = convertedHEIFImage
+                    @processingNote = "converted to heif"
+                    @shouldPreserveOriginalFile = false
+                }
+            }
+        }
+    }
+
+    if shouldPreserveOriginalFile {
+        @preservedOriginalCount += 1
+
+        if imageProcessingMode != originalFilesMode {
+            @processingNote = "kept original"
+        }
+    } else {
+        @optimisedImageCount += 1
+    }
+
+    const archivedFile = setName(processedFileContent, processedFileName, true)
+    @downloadedFiles += archivedFile
+    @archiveInputs += archivedFile
+
+    @manifestLine = "- {processedFileName} | {imageURL} | {processingNote}"
+
+    if fileManifestText != "" {
+        @fileManifestText = "{fileManifestText}{newlineSeparator}{manifestLine}"
+    } else {
+        @fileManifestText = manifestLine
+    }
+}
+
+const downloadedCount = count(downloadedFiles)
+const fallbackArchiveBaseName = "{pageSlug}-{runStamp}"
+@archiveSummary = "Prepared {downloadedCount} images from {currentPageTitle} using {imageProcessingMode} mode."
+@archiveTags = "webpage, images, archive"
+@archiveBaseName = fallbackArchiveBaseName
+@archiveNameSuggestion = ""
+@archiveSummarySuggestion = ""
+@archiveTagsSuggestion = ""
+
+if imageProcessingMode == smallerJPEGMode {
+    @archiveTags = "webpage, images, archive, jpeg, optimised"
+}
+
+if imageProcessingMode == smallerHEIFMode {
+    @archiveTags = "webpage, images, archive, heif, optimised"
+}
+
+const archiveNamePrompt = "
+Return only a short archive name.
+
+Rules:
+- 2 to 6 words.
+- Filesystem-safe.
+- Use only letters, numbers, spaces, dashes, or underscores.
+- Do not add punctuation beyond dashes or underscores.
+
+Page title: {currentPageTitle}
+Page URL: {resolvedPageURL}
+Image count: {downloadedCount}
+Processing mode: {imageProcessingMode}
+Optimised files: {optimisedImageCount}
+Original files kept: {preservedOriginalCount}
+Images:
+{fileManifestText}
+"
+
+const archiveSummaryPrompt = "
+Return only one sentence that summarises this image archive.
+
+Page title: {currentPageTitle}
+Page URL: {resolvedPageURL}
+Image count: {downloadedCount}
+Processing mode: {imageProcessingMode}
+Optimised files: {optimisedImageCount}
+Original files kept: {preservedOriginalCount}
+Images:
+{fileManifestText}
+"
+
+const archiveTagsPrompt = "
+Return only a comma-separated list of lowercase tags for this archive.
+
+Page title: {currentPageTitle}
+Page URL: {resolvedPageURL}
+Image count: {downloadedCount}
+Processing mode: {imageProcessingMode}
+Optimised files: {optimisedImageCount}
+Original files kept: {preservedOriginalCount}
+Images:
+{fileManifestText}
+"
+
+const deviceModelValue = getDeviceDetail("Device Model")
+const deviceModelText = getText(deviceModelValue)
+const deviceModelLowercaseValue = lowercase(deviceModelText)
+const deviceModelLowercase = getText(deviceModelLowercaseValue)
+const systemVersionValue = getDeviceDetail("System Version")
+const systemVersionText = getText(systemVersionValue)
+const deviceModelLowercaseText = "{deviceModelLowercase}"
+const systemVersion = "{systemVersionText}"
+const systemVersionWithout15PrefixValue = replaceText("^15\\.", "", systemVersion, true, true)
+const systemVersionWithout15Prefix = getText(systemVersionWithout15PrefixValue)
+const systemVersionWithout16PrefixValue = replaceText("^16\\.", "", systemVersion, true, true)
+const systemVersionWithout16Prefix = getText(systemVersionWithout16PrefixValue)
+const systemVersionWithout18PrefixValue = replaceText("^18\\.", "", systemVersion, true, true)
+const systemVersionWithout18Prefix = getText(systemVersionWithout18PrefixValue)
+const systemVersionWithout19PrefixValue = replaceText("^19\\.", "", systemVersion, true, true)
+const systemVersionWithout19Prefix = getText(systemVersionWithout19PrefixValue)
+@likelySupportsModelMetadata = false
+
+if deviceModelLowercaseText !contains "watch" {
+    if deviceModelLowercaseText contains "mac" {
+        if systemVersionWithout15Prefix != systemVersion {
+            @likelySupportsModelMetadata = true
+        }
+
+        if systemVersionWithout16Prefix != systemVersion {
+            @likelySupportsModelMetadata = true
+        }
+    } else {
+        if systemVersionWithout18Prefix != systemVersion {
+            @likelySupportsModelMetadata = true
+        }
+
+        if systemVersionWithout19Prefix != systemVersion {
+            @likelySupportsModelMetadata = true
+        }
+    }
+}
+
+@metadataProviders = []
+@metadataProviders += "Skip metadata"
+
+if likelySupportsModelMetadata {
+    @metadataProviders += "Apple Intelligence on Device"
+    @metadataProviders += "Private Cloud Compute"
+    @metadataProviders += "ChatGPT"
+}
+
+@metadataProvider = "Skip metadata"
+
+if likelySupportsModelMetadata {
+    const chosenMetadataProviderValue = chooseFromList(metadataProviders, metadataProviderPrompt)
+    const chosenMetadataProviderText = getText(chosenMetadataProviderValue)
+
+    if chosenMetadataProviderText != "" {
+        @metadataProvider = chosenMetadataProviderText
+    }
+}
+
+if metadataProvider == "Apple Intelligence on Device" {
+    const deviceArchiveNameSuggestionValue = askDeviceLLM(archiveNamePrompt, false, textResultType)
+    const deviceArchiveSummarySuggestionValue = askDeviceLLM(archiveSummaryPrompt, false, textResultType)
+    const deviceArchiveTagsSuggestionValue = askDeviceLLM(archiveTagsPrompt, false, textResultType)
+
+    @archiveNameSuggestion = trimWhitespace(deviceArchiveNameSuggestionValue)
+    @archiveSummarySuggestion = trimWhitespace(deviceArchiveSummarySuggestionValue)
+    @archiveTagsSuggestion = trimWhitespace(deviceArchiveTagsSuggestionValue)
+}
+
+if metadataProvider == "Private Cloud Compute" {
+    const cloudArchiveNameSuggestionValue = askCloudLLM(archiveNamePrompt, false, textResultType)
+    const cloudArchiveSummarySuggestionValue = askCloudLLM(archiveSummaryPrompt, false, textResultType)
+    const cloudArchiveTagsSuggestionValue = askCloudLLM(archiveTagsPrompt, false, textResultType)
+
+    @archiveNameSuggestion = trimWhitespace(cloudArchiveNameSuggestionValue)
+    @archiveSummarySuggestion = trimWhitespace(cloudArchiveSummarySuggestionValue)
+    @archiveTagsSuggestion = trimWhitespace(cloudArchiveTagsSuggestionValue)
+}
+
+if metadataProvider == "ChatGPT" {
+    const chatGPTArchiveNameSuggestionValue = askChatGPT(archiveNamePrompt, false, textResultType)
+    const chatGPTArchiveSummarySuggestionValue = askChatGPT(archiveSummaryPrompt, false, textResultType)
+    const chatGPTArchiveTagsSuggestionValue = askChatGPT(archiveTagsPrompt, false, textResultType)
+
+    @archiveNameSuggestion = trimWhitespace(chatGPTArchiveNameSuggestionValue)
+    @archiveSummarySuggestion = trimWhitespace(chatGPTArchiveSummarySuggestionValue)
+    @archiveTagsSuggestion = trimWhitespace(chatGPTArchiveTagsSuggestionValue)
+}
+
+const cleanedArchiveName = replaceText(invalidFilenamePattern, hyphenText, archiveNameSuggestion, true, true)
+
+if cleanedArchiveName != "" {
+    @archiveBaseName = cleanedArchiveName
+}
+
+if archiveSummarySuggestion != "" {
+    @archiveSummary = archiveSummarySuggestion
+}
+
+if archiveTagsSuggestion != "" {
+    @archiveTags = archiveTagsSuggestion
+}
+
+const manifestText = "
+Archive: {archiveBaseName}.zip
+Source page: {currentPageTitle}
+Source URL: {resolvedPageURL}
+Created at: {runStamp}
+Processing mode: {imageProcessingMode}
+Processing summary: {processingModeSummary}
+Optimised files: {optimisedImageCount}
+Original files kept: {preservedOriginalCount}
+Summary: {archiveSummary}
+Tags: {archiveTags}
+
+Files:
+{fileManifestText}
+"
+
+const manifestFile = setName(manifestText, "manifest.txt", true)
+@archiveInputs += manifestFile
+
+const rawArchive = makeArchive(archiveInputs)
+const archiveFileName = "{archiveBaseName}.zip"
+const archive = setName(rawArchive, archiveFileName, true)
+const successMessage = "Prepared {archiveFileName} with {downloadedCount} images using {imageProcessingMode} mode."
+
+saveFilePrompt(archive, true)
+show(successMessage)

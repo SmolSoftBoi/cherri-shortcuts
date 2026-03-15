@@ -1,26 +1,4 @@
-# Capability: agents-file-generation
-
-## Purpose
-
-Define how the repository maintains committed `AGENTS.md` files as directly edited Markdown documents, including root and directory-scoped guidance.
-
-## Requirements
-
-### Requirement: Generate root AGENTS file
-The repository SHALL keep a repository-root `AGENTS.md` file under version control as a directly maintained Markdown document that contributors can edit without running a generation command.
-
-#### Scenario: Root AGENTS file is edited directly
-- **WHEN** a maintainer updates repository-wide agent guidance
-- **THEN** they edit `AGENTS.md` directly in the repository
-- **THEN** no manifest or generator step is required to keep the file valid
-
-### Requirement: Generate scoped AGENTS files for configured directories
-The repository SHALL keep any supported directory-scoped `AGENTS.md` files under version control as directly maintained Markdown documents placed inside their target directories.
-
-#### Scenario: Scoped AGENTS file is edited directly
-- **WHEN** a maintained subdirectory needs local agent guidance
-- **THEN** the repository stores an `AGENTS.md` file inside that directory
-- **THEN** maintainers update that file directly without running a generation command
+## ADDED Requirements
 
 ### Requirement: AGENTS guidance covers Cherri definitions
 The repository SHALL include Cherri definitions in maintained AGENTS files whenever those files provide contributor guidance about core Cherri language structure, and MUST describe definitions as the `#define` shortcut-metadata feature rather than as functions or action definitions.
